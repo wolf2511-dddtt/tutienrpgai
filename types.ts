@@ -706,7 +706,7 @@ export interface GameContextType {
     levelUpInfo: { newLevel: number, realmChanged: boolean, newRealm: string } | null;
     clearLevelUpInfo: () => void;
     setScreen: (screen: GameScreen) => void;
-    handleCreateGame: (name: string, playerClass: string, classDefinition: BaseStats | undefined, characterContext: string, worldPrompt: string, worldKeywords: string, difficulty: Difficulty, storyInfo?: { title: string, author: string }) => Promise<void>;
+    handleCreateGame: (name: string, playerClass: string, classDefinition: BaseStats | undefined, characterContext: string, worldPrompt: string, worldKeywords: string, difficulty: Difficulty, storyInfo?: { title: string; author: string }) => Promise<void>;
     handleQuickPlay: () => Promise<void>;
     handleStartCombat: (isBoss?: boolean, forcedBossName?: string) => Promise<void>;
     handleCombatEnd: (playerWon: boolean, finalPlayerState: Character, finalPetState: Pet | null, expGained: number, itemsDropped: Item[], materialsDropped: { [key in UpgradeMaterial]?: number }, consumablesDropped: { [key in UpgradeConsumable]?: number }) => Promise<void>;
@@ -717,7 +717,7 @@ export interface GameContextType {
     handlePlayerMove: (newPosition: { x: number; y: number }) => Promise<void>;
     handlePlayerRecover: () => Promise<void>;
     handleSaveGame: (slotId: number) => boolean;
-    handleLoadGame: (slotId: number) => void;
+    handleLoadGame: (slotId: number) => Promise<void>;
     handleDeleteSave: (slotId: number) => void;
     handleSettingsChange: (newSettings: AppSettings) => void;
     handleUpdateImageLibrary: (library: ImageLibraryItem[]) => void;

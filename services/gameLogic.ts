@@ -1,4 +1,4 @@
-import { Character, PlayerClass, Stat, Realm, BaseStats, DerivedStats, Item, ItemType, Rarity, UpgradeMaterial, UpgradeConsumable, AttackResult, AffixId, SetBonus, Skill, SkillType, ImageLibraryItem, WorldState, TerrainType, Difficulty, ActiveEffect, SkillEffect, TargetType, SkillEffectType, Combatant, Pet, PetStatus, CultivationTechnique, Faction, MonsterRank, LinhCan, LinhCanQuality, Element, MonsterTemplate, Servant, ServantTask } from '../types';
+import { Character, PlayerClass, Stat, Realm, BaseStats, DerivedStats, Item, ItemType, Rarity, UpgradeMaterial, UpgradeConsumable, AttackResult, AffixId, SetBonus, Skill, SkillType, ImageLibraryItem, WorldState, TerrainType, Difficulty, ActiveEffect, SkillEffect, TargetType, SkillEffectType, Combatant, Pet, PetStatus, CultivationTechnique, Faction, MonsterRank, LinhCan, LinhCanQuality, Element, MonsterTemplate, Servant, ServantTask, CultivationTechniqueType } from '../types';
 import { REALMS, CLASS_STATS, RARITY_DATA, AVAILABLE_ITEM_TYPES, AVAILABLE_BONUS_STATS, ITEM_SETS, SKILLS, MAP_WIDTH, MAP_HEIGHT, TERRAIN_DATA, DIFFICULTY_MODIFIERS, MONSTER_RANK_MODIFIERS, LINH_CAN_QUALITIES, CUSTOM_CLASS_POINTS_PER_LEVEL } from '../constants';
 import { generateItemDetails, generateMonsterName, generateSkill, generateBonusStatsForItem, generateCultivationTechniqueDetails, generateSkillForSkillBook } from './geminiService';
 import { BOSS_DEFINITIONS } from '../data/bossData';
@@ -724,7 +724,10 @@ export const fullyUpdateCharacter = async (character: Character): Promise<Charac
         pets: character.pets || [],
         activePetId: character.activePetId || null,
         forgingProficiency: character.forgingProficiency || { level: 1, exp: 0, expToNextLevel: 100 },
-        learnedCultivationTechniques: character.learnedCultivationTechniques || [],
+        learnedCultivationTechniques: (character.learnedCultivationTechniques || []).map(tech => ({
+            ...tech,
+            type: tech.type || CultivationTechniqueType.TAM_PHAP, // Ensure every technique has a type for filtering
+        })),
         activeCultivationTechniqueId: character.activeCultivationTechniqueId || null,
         reputation: character.reputation || {},
         sectId: character.sectId || null,

@@ -590,10 +590,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return true;
     }, [character, appSettings, imageLibrary, worldState, refreshSaveSlots]);
 
-    const handleLoadGame = useCallback((slotId: number) => {
+    const handleLoadGame = useCallback(async (slotId: number) => {
         const file = loadGame(slotId);
         if (file) {
-            setCharacter(file.character);
+            const finalCharacter = await fullyUpdateCharacter(file.character);
+            setCharacter(finalCharacter);
             setAppSettings(file.appSettings);
             setImageLibrary(file.imageLibrary || DEFAULT_IMAGE_LIBRARY);
             setWorldState(file.worldState);
