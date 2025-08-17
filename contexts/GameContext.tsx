@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useCallback, useContext, useEffect, ReactNode } from 'react';
-import { GameScreen, Character, Item, UpgradeMaterial, ImageLibraryItem, SaveSlot, AppSettings, SaveFile, WorldState, ItemType, Poi, Quest, QuestStatus, QuestType, DialogueState, DialogueTurn, SoulEffect, BaseStats, Difficulty, GameContextType, Rarity, TerrainType, SkillType, Pet, PetStatus, UpgradeConsumable, ExplorationEventLog, ExplorationEvent, CultivationTechnique, Faction, SectStoreItem, DialogueAIResponse, NpcTemplate, MonsterTemplate, DungeonState, DungeonFloorType, Skill, ForgeOptions, Stat, MonsterRank, Element, MetNpcInfo, LogType, ServantTask, Servant } from '../types';
+import { GameScreen, Character, Item, UpgradeMaterial, ImageLibraryItem, SaveSlot, AppSettings, SaveFile, WorldState, ItemType, Poi, Quest, QuestStatus, QuestType, DialogueState, DialogueTurn, SoulEffect, BaseStats, Difficulty, GameContextType, Rarity, TerrainType, SkillType, Pet, PetStatus, UpgradeConsumable, ExplorationEventLog, ExplorationEvent, CultivationTechnique, Faction, SectStoreItem, DialogueAIResponse, NpcTemplate, MonsterTemplate, DungeonState, DungeonFloorType, Skill, ForgeOptions, Stat, MonsterRank, Element, MetNpcInfo, LogType, ServantTask, Servant, PlayerClass } from '../types';
 import { createInitialCharacter, fullyUpdateCharacter, createMonster, getDismantleResult, generateItem, gainExp, convertMonsterToPet, gainExpForPet, fullyUpdatePet, calculateForgingExpToNextLevel, createBoss, getTerrainFromPosition, convertEnemyToServant } from '../services/gameLogic';
 import * as geminiService from '../services/geminiService';
 import { loadAllSaveSlots, saveGame, deleteSave, loadGame, saveSettings, loadSettings } from '../services/storageService';
@@ -208,6 +208,78 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsQuickPlayLoading(false);
         }
     }, [handleCreateGame]);
+
+    const handleDevQuickStart = useCallback(async () => {
+        const worldFactions: Faction[] = VAN_LINH_GIOI_FACTIONS.map(f => ({ ...f, id: crypto.randomUUID(), store: [] }));
+        const bestiary: MonsterTemplate[] = PREDEFINED_MONSTERS.map(m => ({ ...m, discovered: false }));
+        const factionNameToIdMap = new Map(worldFactions.map(f => [f.name, f.id]));
+
+        const newWorldState: WorldState = {
+            name: VAN_LINH_GIOI_NAME,
+            description: VAN_LINH_GIOI_DESCRIPTION,
+            factions: worldFactions,
+            bestiary: bestiary,
+            notableNpcs: [],
+            pois: VAN_LINH_GIOI_POIS.map((poiData, index) => ({
+                id: index + 1,
+                coords: poiData.coords,
+                type: poiData.type,
+                region: poiData.region,
+                name: poiData.name,
+                description: poiData.description,
+                isLoading: false,
+                factionId: poiData.factionName ? factionNameToIdMap.get(poiData.factionName) || null : null,
+                dungeonId: poiData.type === 'Lối Vào Bí Cảnh' ? `dungeon-${index}` : undefined
+            })),
+            dungeons: [],
+        };
+
+        let devCharacter = createInitialCharacter("Dev Player", PlayerClass.KIEM_TU, undefined, worldFactions);
+        devCharacter.level = 10;
+        devCharacter.backstory = "Một nhà phát triển du hành qua các thế giới để kiểm tra thực tại.";
+        
+        const testSword: Item = {
+            id: crypto.randomUUID(),
+            name: "Dev Sword",
+            type: ItemType.WEAPON,
+            level: 10,
+            rarity: Rarity.EPIC,
+            baseStats: { [Stat.ATK]: 50 },
+            bonusStats: { [Stat.CRIT_RATE]: 10 },
+            upgradeLevel: 0,
+            maxUpgrade: 10,
+            history: [],
+            evolved: false,
+        };
+        const testArmor: Item = {
+            id: crypto.randomUUID(),
+            name: "Dev Armor",
+            type: ItemType.ARMOR,
+            level: 10,
+            rarity: Rarity.EPIC,
+            baseStats: { [Stat.DEF]: 40, [Stat.HP]: 200 },
+            bonusStats: { [Stat.CON]: 5 },
+            upgradeLevel: 0,
+            maxUpgrade: 10,
+            history: [],
+            evolved: false,
+        };
+        devCharacter.inventory.push(testSword, testArmor);
+        
+        devCharacter.materials[UpgradeMaterial.TINH_THACH_HA_PHAM] = 100;
+        devCharacter.materials[UpgradeMaterial.TINH_THACH_TRUNG_PHAM] = 50;
+        devCharacter.materials[UpgradeMaterial.TINH_THACH_CAO_PHAM] = 20;
+        devCharacter.materials[UpgradeMaterial.LINH_HON_THACH] = 10;
+        devCharacter.consumables[UpgradeConsumable.BUA_SAO] = 10;
+        devCharacter.consumables[UpgradeConsumable.BOT_THAN_TUY] = 10;
+        devCharacter.consumables[UpgradeConsumable.LINH_THU_PHU] = 10;
+
+        const finalCharacter = await fullyUpdateCharacter(devCharacter);
+
+        setCharacter(finalCharacter);
+        setWorldState(newWorldState);
+        setScreen(GameScreen.WORLD);
+    }, []);
 
     const handleOpenTransientDialogue = useCallback(async (dialogue: DialogueState) => {
         if (!character) return;
@@ -1394,6 +1466,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         handleCatchPet,
         handleEquipItem,
         handleUnequipItem,
+        handleDevQuickStart,
         handleEnslaveTarget,
         handleSetActiveRetainer,
         handleAssignServantTask,

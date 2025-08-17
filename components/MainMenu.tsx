@@ -4,7 +4,7 @@ import { useGame } from '../contexts/GameContext';
 import { MENU_BACKGROUND_IMAGES } from '../data/menuBackgrounds';
 
 const MainMenu: React.FC = () => {
-    const { handleOpenImageLibrary, isFullscreen, handleToggleFullscreen, handleOpenMenu, saveSlots, handleStartNewGame, handleQuickPlay, isQuickPlayLoading } = useGame();
+    const { handleOpenImageLibrary, isFullscreen, handleToggleFullscreen, handleOpenMenu, saveSlots, handleStartNewGame, handleQuickPlay, isQuickPlayLoading, handleDevQuickStart } = useGame();
     const activeSaveCount = saveSlots.filter(s => s.characterName).length;
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -69,6 +69,7 @@ const MainMenu: React.FC = () => {
                         {isFullscreen ? 'Thoát Toàn Màn Hình' : 'Toàn Màn Hình'}
                     </button>
                     <button onClick={handleOpenImageLibrary} className="hover:text-white transition-colors">Thư Viện Ảnh</button>
+                    <button onClick={handleDevQuickStart} className="text-yellow-400 hover:text-yellow-300 transition-colors">Vào Nhanh (Dev)</button>
                 </div>
                 <p>Phiên bản 2.2.0</p>
             </footer>

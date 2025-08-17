@@ -67,8 +67,8 @@
         }
 
         @keyframes pulse-border {
-            0%, 100% { box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.5); }
-            50% { box-shadow: 0 0 15px 5px rgba(192, 132, 252, 0.8); }
+            0%, 100% { box-shadow: 0 0 0 2px var(--color-primary-pulse-border); }
+            50% { box-shadow: 0 0 15px 5px var(--color-primary-pulse-glow); }
         }
         .animate-pulse-border {
             animation: pulse-border 2s infinite ease-in-out;
@@ -95,6 +95,90 @@
         }
         .animate-scale-up {
             animation: scale-up-anim 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+        }
+
+        /* Font Size Control */
+        html.font-size-small { font-size: 14px; }
+        html.font-size-medium { font-size: 16px; }
+        html.font-size-large { font-size: 18px; }
+
+        /* Color Theme Variables */
+        :root, html.theme-default {
+            --color-bg-main: #111827;
+            --color-bg-secondary: #1f2937;
+            --color-bg-tertiary: #374151;
+            --color-bg-quaternary: #4b5563;
+
+            --color-text-light: #f3f4f6;
+            --color-text-medium: #d1d5db;
+            --color-text-dark: #9ca3af;
+            
+            --color-primary: #8b5cf6;
+            --color-primary-light: #c084fc;
+            --color-primary-dark: #7c3aed;
+            --color-primary-darker: #6d28d9;
+            --color-primary-bg: rgba(139, 92, 246, 0.15);
+            --color-primary-pulse-glow: rgba(192, 132, 252, 0.8);
+            --color-primary-pulse-border: rgba(192, 132, 252, 0.5);
+
+            --color-secondary: #22d3ee;
+            --color-secondary-dark: #0891b2;
+            --color-secondary-bg: rgba(34, 211, 238, 0.15);
+
+            --color-accent: #f97316;
+            --color-accent-light: #fb923c;
+            --color-accent-dark: #ea580c;
+            --color-accent-bg: rgba(249, 115, 22, 0.15);
+
+            --color-success: #22c55e;
+            --color-danger: #ef4444;
+            --color-info: #3b82f6;
+        }
+
+        html.theme-deuteranopia { /* Red-Green blindness */
+            --color-primary: #0ea5e9;
+            --color-primary-light: #7dd3fc;
+            --color-primary-dark: #0284c7;
+            --color-primary-darker: #0369a1;
+            --color-primary-bg: rgba(14, 165, 233, 0.15);
+            --color-primary-pulse-glow: rgba(14, 165, 233, 0.8);
+            --color-primary-pulse-border: rgba(14, 165, 233, 0.5);
+
+            --color-secondary: #f97316;
+            --color-secondary-dark: #ea580c;
+            --color-secondary-bg: rgba(249, 115, 22, 0.15);
+            
+            --color-accent: #eab308;
+            --color-accent-light: #fde047;
+            --color-accent-dark: #ca8a04;
+            --color-accent-bg: rgba(234, 179, 8, 0.15);
+            
+            --color-success: var(--color-primary);
+            --color-danger: #f43f5e;
+            --color-info: #a855f7;
+        }
+
+        html.theme-tritanopia { /* Blue-Yellow blindness */
+            --color-primary: #ec4899;
+            --color-primary-light: #f9a8d4;
+            --color-primary-dark: #db2777;
+            --color-primary-darker: #9d174d;
+            --color-primary-bg: rgba(236, 72, 153, 0.15);
+            --color-primary-pulse-glow: rgba(236, 72, 153, 0.8);
+            --color-primary-pulse-border: rgba(236, 72, 153, 0.5);
+
+            --color-secondary: #14b8a6;
+            --color-secondary-dark: #0d9488;
+            --color-secondary-bg: rgba(20, 184, 166, 0.15);
+
+            --color-accent: #f43f5e;
+            --color-accent-light: #fb7185;
+            --color-accent-dark: #e11d48;
+            --color-accent-bg: rgba(244, 63, 94, 0.15);
+
+            --color-success: var(--color-secondary);
+            --color-danger: #dc2626;
+            --color-info: #6366f1;
         }
     </style>
 <script type="importmap">

@@ -1,4 +1,4 @@
-import { Realm, PlayerClass, Rarity, Stat, ItemType, UpgradeMaterial, UpgradeConsumable, Item, AffixId, Affix, ItemSet, Skill, SkillType, TargetType, TerrainType, Poi, BaseStats, AppSettings, Difficulty, SkillEffectType, MonsterRank, Element, LinhCanQuality, LinhCan } from './types';
+import { Realm, PlayerClass, Rarity, Stat, ItemType, UpgradeMaterial, UpgradeConsumable, Item, AffixId, Affix, ItemSet, Skill, SkillType, TargetType, TerrainType, Poi, BaseStats, AppSettings, Difficulty, SkillEffectType, MonsterRank, Element, LinhCanQuality, LinhCan, FontSize, ColorTheme } from './types';
 
 export const MAP_WIDTH = 20;
 export const MAP_HEIGHT = 20;
@@ -343,4 +343,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
         [Rarity.MYTHIC]: false,
     },
     useAdvancedCombatAI: false,
+    fontSize: FontSize.MEDIUM,
+    colorTheme: ColorTheme.DEFAULT,
+    storyLogFontSize: FontSize.MEDIUM,
 };

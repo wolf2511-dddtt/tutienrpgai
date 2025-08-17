@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppSettings, Rarity } from '../types';
+import { AppSettings, Rarity, FontSize, ColorTheme } from '../types';
 import { deleteAllData, saveApiKey, loadApiKey } from '../services/storageService';
 import { useGame } from '../contexts/GameContext';
 import { reinitializeAiClient } from '../services/geminiService';
@@ -10,7 +10,7 @@ interface SettingsProps {
 
 const Slider: React.FC<{ label: string; value: number; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; min?: number; max?: number, step?: number }> = ({ label, value, onChange, min = 0, max = 1, step = 0.01 }) => (
     <div>
-        <label className="block text-gray-300 mb-2">{label}: {Math.round(value * 100)}%</label>
+        <label className="block text-[var(--color-text-medium)] mb-2">{label}: {Math.round(value * 100)}%</label>
         <input
             type="range"
             min={min}
@@ -18,7 +18,7 @@ const Slider: React.FC<{ label: string; value: number; onChange: (e: React.Chang
             step={step}
             value={value}
             onChange={onChange}
-            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-2 bg-[var(--color-bg-tertiary)] rounded-lg appearance-none cursor-pointer"
         />
     </div>
 );
@@ -68,37 +68,67 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-md p-4">
-            <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-8 w-full max-w-lg text-white relative max-h-[90vh] overflow-y-auto">
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl z-10">&times;</button>
-                <h2 className="text-3xl font-bold text-center text-purple-400 mb-6">Thiết Lập</h2>
+            <div className="bg-[var(--color-bg-main)] border border-[var(--color-bg-tertiary)] rounded-2xl shadow-2xl p-8 w-full max-w-lg text-[var(--color-text-light)] relative max-h-[90vh] overflow-y-auto">
+                <button onClick={onClose} className="absolute top-4 right-4 text-[var(--color-text-dark)] hover:text-[var(--color-text-light)] text-3xl z-10">&times;</button>
+                <h2 className="text-3xl font-bold text-center text-[var(--color-primary-light)] mb-6">Thiết Lập</h2>
 
                 {notification && <div className="text-center bg-green-500/20 text-green-300 p-2 rounded-lg mb-4">{notification}</div>}
 
                 <div className="space-y-6">
-                    <div>
-                        <h3 className="text-xl font-semibold text-gray-200 mb-3">API Key</h3>
-                        <p className="text-xs text-gray-400 mb-2">Nhập Google Gemini API Key của bạn. Key này sẽ được ưu tiên hơn so với key hệ thống (nếu có).</p>
+                     <div>
+                        <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">API Key</h3>
+                        <p className="text-xs text-[var(--color-text-dark)] mb-2">Nhập Google Gemini API Key của bạn. Key này sẽ được ưu tiên hơn so với key hệ thống (nếu có).</p>
                         <input
                             type="password"
                             value={apiKey}
                             onChange={e => setApiKey(e.target.value)}
                             placeholder="Nhập API Key..."
-                            className="w-full bg-gray-800 p-3 rounded-lg border-2 border-gray-600 focus:border-purple-500 outline-none transition"
+                            className="w-full bg-[var(--color-bg-secondary)] p-3 rounded-lg border-2 border-[var(--color-bg-quaternary)] focus:border-[var(--color-primary)] outline-none transition"
                         />
                     </div>
                     
                     <div>
-                        <h3 className="text-xl font-semibold text-gray-200 mb-3">Gameplay</h3>
+                        <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">Gameplay</h3>
                         <Slider label="Tốc Độ Hoạt Cảnh" value={currentSettings.gameSpeed} onChange={e => handleChange('gameSpeed', parseFloat(e.target.value))} />
                         <Slider label="Tần Suất Sự Kiện" value={currentSettings.eventFrequency} onChange={e => handleChange('eventFrequency', parseFloat(e.target.value))} min={0} max={1} step={0.05} />
                     </div>
 
-                    <div>
-                        <h3 className="text-xl font-semibold text-gray-200 mb-3">Tính Năng AI</h3>
-                        <label className="flex items-center justify-between cursor-pointer bg-gray-800 p-3 rounded-md hover:bg-gray-700" onClick={() => { handleChange('useAdvancedCombatAI', !currentSettings.useAdvancedCombatAI); }}>
+                     <div>
+                        <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">Giao Diện</h3>
+                        <div className="space-y-4">
                             <div>
-                                <span className="font-semibold text-purple-300">AI Chiến Đấu Nâng Cao</span>
-                                <p className="text-xs text-gray-400">Sử dụng AI để quyết định chiến thuật và tường thuật trận đấu. Có thể gây lỗi nếu dùng quá nhiều.</p>
+                                <label className="block text-[var(--color-text-medium)] mb-2">Kích thước chữ (Toàn cục)</label>
+                                <div className="flex gap-2">
+                                    <button onClick={() => handleChange('fontSize', FontSize.SMALL)} className={`flex-1 p-2 rounded-md text-sm transition ${currentSettings.fontSize === FontSize.SMALL ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Nhỏ</button>
+                                    <button onClick={() => handleChange('fontSize', FontSize.MEDIUM)} className={`flex-1 p-2 rounded-md text-sm transition ${currentSettings.fontSize === FontSize.MEDIUM ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Vừa</button>
+                                    <button onClick={() => handleChange('fontSize', FontSize.LARGE)} className={`flex-1 p-2 rounded-md text-sm transition ${currentSettings.fontSize === FontSize.LARGE ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Lớn</button>
+                                </div>
+                            </div>
+                             <div>
+                                <label className="block text-[var(--color-text-medium)] mb-2">Kích thước chữ Dẫn Truyện</label>
+                                <div className="flex gap-2">
+                                    <button onClick={() => handleChange('storyLogFontSize', FontSize.SMALL)} className={`flex-1 p-2 rounded-md text-sm transition ${currentSettings.storyLogFontSize === FontSize.SMALL ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Nhỏ</button>
+                                    <button onClick={() => handleChange('storyLogFontSize', FontSize.MEDIUM)} className={`flex-1 p-2 rounded-md text-sm transition ${currentSettings.storyLogFontSize === FontSize.MEDIUM ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Vừa</button>
+                                    <button onClick={() => handleChange('storyLogFontSize', FontSize.LARGE)} className={`flex-1 p-2 rounded-md text-sm transition ${currentSettings.storyLogFontSize === FontSize.LARGE ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Lớn</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[var(--color-text-medium)] mb-2">Chủ đề màu sắc</label>
+                                <div className="flex flex-col gap-2">
+                                    <button onClick={() => handleChange('colorTheme', ColorTheme.DEFAULT)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.DEFAULT ? 'bg-purple-600 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Mặc định</button>
+                                    <button onClick={() => handleChange('colorTheme', ColorTheme.DEUTERANOPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.DEUTERANOPIA ? 'bg-sky-500 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Hỗ trợ mù màu (Đỏ/Lục)</button>
+                                    <button onClick={() => handleChange('colorTheme', ColorTheme.TRITANOPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.TRITANOPIA ? 'bg-pink-500 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Hỗ trợ mù màu (Lam/Vàng)</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">Tính Năng AI</h3>
+                        <label className="flex items-center justify-between cursor-pointer bg-[var(--color-bg-secondary)] p-3 rounded-md hover:bg-gray-700" onClick={() => { handleChange('useAdvancedCombatAI', !currentSettings.useAdvancedCombatAI); }}>
+                            <div>
+                                <span className="font-semibold text-[var(--color-primary-light)]">AI Chiến Đấu Nâng Cao</span>
+                                <p className="text-xs text-[var(--color-text-dark)]">Sử dụng AI để quyết định chiến thuật và tường thuật trận đấu. Có thể gây lỗi nếu dùng quá nhiều.</p>
                             </div>
                             <div className="relative">
                                 <input
@@ -107,23 +137,23 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                                     checked={currentSettings.useAdvancedCombatAI}
                                     className="sr-only"
                                 />
-                                <div className={`block w-14 h-8 rounded-full ${currentSettings.useAdvancedCombatAI ? 'bg-purple-600' : 'bg-gray-600'}`}></div>
+                                <div className={`block w-14 h-8 rounded-full ${currentSettings.useAdvancedCombatAI ? 'bg-[var(--color-primary-dark)]' : 'bg-[var(--color-bg-quaternary)]'}`}></div>
                                 <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${currentSettings.useAdvancedCombatAI ? 'transform translate-x-6' : ''}`}></div>
                             </div>
                         </label>
                     </div>
                     
                     <div>
-                        <h3 className="text-xl font-semibold text-gray-200 mb-3">Tự Động Phân Giải</h3>
-                        <p className="text-xs text-gray-400 mb-2">Chọn độ hiếm để tự động phân giải khi nhặt được.</p>
+                        <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">Tự Động Phân Giải</h3>
+                        <p className="text-xs text-[var(--color-text-dark)] mb-2">Chọn độ hiếm để tự động phân giải khi nhặt được.</p>
                         <div className="grid grid-cols-2 gap-2">
                              {rarities.map(rarity => (
-                                <label key={rarity} className="flex items-center space-x-2 cursor-pointer bg-gray-800 p-2 rounded-md hover:bg-gray-700">
+                                <label key={rarity} className="flex items-center space-x-2 cursor-pointer bg-[var(--color-bg-secondary)] p-2 rounded-md hover:bg-gray-700">
                                     <input
                                         type="checkbox"
                                         checked={!!currentSettings.autoDismantleRarities[rarity]}
                                         onChange={() => handleAutoDismantleChange(rarity)}
-                                        className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-purple-600 focus:ring-purple-500"
+                                        className="h-4 w-4 rounded bg-[var(--color-bg-tertiary)] border-[var(--color-bg-quaternary)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                                     />
                                     <span>{rarity}</span>
                                 </label>
@@ -132,7 +162,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                     </div>
 
                     <div className="flex justify-end pt-4">
-                        <button onClick={handleSaveSettings} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                        <button onClick={handleSaveSettings} className="bg-[var(--color-primary-dark)] hover:bg-[var(--color-primary-darker)] text-white font-bold py-2 px-6 rounded-lg transition-colors">
                             Lưu Thiết Lập
                         </button>
                     </div>
