@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { APP_VERSION, CHANGELOG } from '../constants';
 import { GameScreen } from '../types';
 import { useGame } from '../contexts/GameContext';
 import { MENU_BACKGROUND_IMAGES } from '../data/menuBackgrounds';
@@ -7,6 +8,7 @@ const MainMenu: React.FC = () => {
     const { handleOpenImageLibrary, isFullscreen, handleToggleFullscreen, handleOpenMenu, saveSlots, handleStartNewGame, handleQuickPlay, isQuickPlayLoading } = useGame();
     const activeSaveCount = saveSlots.filter(s => s.characterName).length;
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [showChangelog, setShowChangelog] = useState(false);
 
     useEffect(() => {
         const preloadImages = () => {
@@ -63,14 +65,45 @@ const MainMenu: React.FC = () => {
             </div>
             <footer className="relative z-10 text-center text-gray-300 text-sm pb-4">
                 <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 mb-2">
-                    <button onClick={() => handleOpenMenu(GameScreen.SAVE_MANAGEMENT)} className="hover:text-white transition-colors">Quản lý Lưu trữ ({activeSaveCount})</button>
-                    <button onClick={() => handleOpenMenu(GameScreen.SETTINGS)} className="hover:text-white transition-colors">Thiết Lập</button>
-                    <button onClick={handleToggleFullscreen} className="hover:text-white transition-colors">
+                    <button onClick={() => handleOpenMenu(GameScreen.SAVE_MANAGEMENT)} className="hover:text-white transition-colors text-lg px-4 py-2 font-semibold">Quản lý Lưu trữ ({activeSaveCount})</button>
+                    <button onClick={() => handleOpenMenu(GameScreen.SETTINGS)} className="hover:text-white transition-colors text-lg px-4 py-2 font-semibold">Thiết Lập</button>
+                    <button onClick={handleToggleFullscreen} className="hover:text-white transition-colors text-lg px-4 py-2 font-semibold">
                         {isFullscreen ? 'Thoát Toàn Màn Hình' : 'Toàn Màn Hình'}
                     </button>
-                    <button onClick={handleOpenImageLibrary} className="hover:text-white transition-colors">Thư Viện Ảnh</button>
+                    <button onClick={handleOpenImageLibrary} className="hover:text-white transition-colors text-lg px-4 py-2 font-semibold">Thư Viện Ảnh</button>
                 </div>
-                <p>Phiên bản 2.2.0</p>
+                                <button
+                                    className="text-gray-300 hover:text-orange-400 transition-colors underline text-sm mt-2"
+                                    onClick={() => setShowChangelog(true)}
+                                    aria-label="Xem thông tin cập nhật"
+                                >
+                                    Phiên bản {APP_VERSION}
+                                </button>
+
+                                {showChangelog && (
+                                    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+                                        <div className="bg-gray-900 rounded-lg shadow-lg p-6 max-w-md w-full relative">
+                                            <button
+                                                className="absolute top-2 right-2 text-gray-400 hover:text-white text-xl"
+                                                onClick={() => setShowChangelog(false)}
+                                                aria-label="Đóng"
+                                            >
+                                                ×
+                                            </button>
+                                            <h2 className="text-2xl font-bold text-orange-400 mb-2">Thông tin cập nhật</h2>
+                                            <div className="space-y-4 max-h-80 overflow-y-auto">
+                                                {CHANGELOG.map(log => (
+                                                    <div key={log.version} className="border-b border-gray-700 pb-2 mb-2">
+                                                        <div className="font-semibold text-lg text-white">Phiên bản {log.version} <span className="text-xs text-gray-400">({log.date})</span></div>
+                                                        <ul className="list-disc list-inside text-gray-200 text-sm mt-1">
+                                                            {log.changes.map((c, i) => <li key={i}>{c}</li>)}
+                                                        </ul>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
             </footer>
         </div>
     );
