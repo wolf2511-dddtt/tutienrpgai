@@ -47,6 +47,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSaveSlots(loadAllSaveSlots());
     }, []);
 
+
+    // Áp dụng font settings toàn app
+    useEffect(() => {
+        const { fontSize = 18, fontFamily = 'Inter, sans-serif' } = appSettings;
+        document.body.style.fontSize = fontSize + 'px';
+        document.body.style.fontFamily = fontFamily;
+    }, [appSettings.fontSize, appSettings.fontFamily]);
+
     useEffect(() => {
         geminiService.reinitializeAiClient();
     }, []);

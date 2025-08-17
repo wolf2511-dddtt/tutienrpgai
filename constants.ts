@@ -11,6 +11,13 @@ export const CHANGELOG = [
         ],
     },
     {
+        version: '1.0.1',
+        date: '2025-08-17',
+        changes: [
+            'Sửa một số lỗi nhỏ.',
+        ],
+    },
+    {
         version: '1.0.0',
         date: '2025-08-16',
         changes: [

@@ -26,13 +26,25 @@ const Slider: React.FC<{ label: string; value: number; onChange: (e: React.Chang
 const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     const { appSettings, handleSettingsChange } = useGame();
     const [currentSettings, setCurrentSettings] = useState<AppSettings>(appSettings);
-    const [apiKey, setApiKey] = useState('');
+    const [apiKeys, setApiKeys] = useState<string[]>(['']);
     const [notification, setNotification] = useState('');
+    // Font settings
+    const fontOptions = [
+        { label: 'Inter (Mặc định)', value: 'Inter, sans-serif' },
+        { label: 'Be Vietnam Pro', value: 'Be Vietnam Pro, sans-serif' },
+        { label: 'Roboto', value: 'Roboto, sans-serif' },
+        { label: 'Arial', value: 'Arial, sans-serif' },
+        { label: 'Times New Roman', value: 'Times New Roman, serif' },
+    ];
+    const [fontSize, setFontSize] = useState<number>(appSettings.fontSize || 18);
+    const [fontFamily, setFontFamily] = useState<string>(appSettings.fontFamily || fontOptions[0].value);
 
     useEffect(() => {
         const savedKey = loadApiKey();
         if (savedKey) {
-            setApiKey(savedKey);
+            setApiKeys([savedKey]);
+        } else {
+            setApiKeys(['']);
         }
     }, []);
 
@@ -47,8 +59,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     };
 
     const handleSaveSettings = () => {
-        handleSettingsChange(currentSettings);
-        saveApiKey(apiKey);
+        handleSettingsChange({
+            ...currentSettings,
+            fontSize,
+            fontFamily,
+        });
+        // Lưu key đầu tiên để không ảnh hưởng logic cũ
+        saveApiKey(apiKeys[0] || '');
         reinitializeAiClient();
         setNotification('Đã lưu thiết lập!');
         setTimeout(() => setNotification(''), 2000);
@@ -75,16 +92,85 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 {notification && <div className="text-center bg-green-500/20 text-green-300 p-2 rounded-lg mb-4">{notification}</div>}
 
                 <div className="space-y-6">
+                    {/* Font Settings */}
+                    <div className="border-b border-blue-400 pb-4 mb-4">
+                        <h3 className="text-xl font-semibold text-blue-300 mb-3 flex items-center gap-2"><span className="text-2xl">🅰️</span> Cài Đặt Font</h3>
+                        <div className="mb-2">
+                            <label className="block text-gray-300 mb-1">Kích cỡ font: <span className="font-bold">{fontSize}px</span></label>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400">12px</span>
+                                <input
+                                    type="range"
+                                    min={12}
+                                    max={32}
+                                    value={fontSize}
+                                    onChange={e => setFontSize(Number(e.target.value))}
+                                    className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+                                <span className="text-xs text-gray-400">32px</span>
+                            </div>
+                        </div>
+                        <div className="mb-2">
+                            <div
+                                className="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-800 text-center mb-2"
+                                style={{ fontSize: fontSize, fontFamily: fontFamily }}
+                            >
+                                Đây là văn bản mẫu với font hiện tại
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-gray-300 mb-1">Loại font</label>
+                            <select
+                                value={fontFamily}
+                                onChange={e => setFontFamily(e.target.value)}
+                                className="w-full bg-gray-800 p-3 rounded-lg border-2 border-gray-600 focus:border-blue-500 outline-none transition"
+                            >
+                                {fontOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
                     <div>
-                        <h3 className="text-xl font-semibold text-gray-200 mb-3">API Key</h3>
-                        <p className="text-xs text-gray-400 mb-2">Nhập Google Gemini API Key của bạn. Key này sẽ được ưu tiên hơn so với key hệ thống (nếu có).</p>
-                        <input
-                            type="password"
-                            value={apiKey}
-                            onChange={e => setApiKey(e.target.value)}
-                            placeholder="Nhập API Key..."
-                            className="w-full bg-gray-800 p-3 rounded-lg border-2 border-gray-600 focus:border-purple-500 outline-none transition"
-                        />
+                        <h3 className="text-xl font-semibold text-gray-200 mb-3">Sử Dụng API Key Của Bạn</h3>
+                        <div className="space-y-2 mb-2">
+                            {apiKeys.map((key, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                    <input
+                                        type="password"
+                                        value={key}
+                                        onChange={e => {
+                                            const newKeys = [...apiKeys];
+                                            newKeys[idx] = e.target.value;
+                                            setApiKeys(newKeys);
+                                        }}
+                                        placeholder="Nhập API Key..."
+                                        className="flex-1 bg-gray-800 p-3 rounded-lg border-2 border-gray-600 focus:border-purple-500 outline-none transition"
+                                    />
+                                    {apiKeys.length > 1 && (
+                                        <button
+                                            className="bg-red-600 hover:bg-red-700 text-white rounded px-3 py-2 text-sm font-bold"
+                                            onClick={() => {
+                                                setApiKeys(apiKeys.filter((_, i) => i !== idx));
+                                            }}
+                                            type="button"
+                                            title="Xóa key này"
+                                        >
+                                            &#10006;
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <button
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 font-bold mb-2"
+                            type="button"
+                            onClick={() => setApiKeys([...apiKeys, ''])}
+                        >
+                            + Thêm API Key
+                        </button>
+                        <p className="text-xs text-gray-400 mt-1">Các API Key của bạn sẽ được lưu trữ cục bộ trên trình duyệt này. Nếu có nhiều key, hệ thống sẽ tự động chuyển khi gặp lỗi giới hạn.</p>
+                        <div className="text-green-400 text-sm mt-1">Đang hoạt động</div>
                     </div>
                     
                     <div>

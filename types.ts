@@ -557,11 +557,13 @@ export interface ImageLibraryItem {
 }
 
 export interface AppSettings {
-    gameSpeed: number;
-    difficulty: Difficulty;
-    eventFrequency: number;
-    autoDismantleRarities: { [key in Rarity]?: boolean };
-    useAdvancedCombatAI: boolean;
+  gameSpeed: number;
+  difficulty: Difficulty;
+  eventFrequency: number;
+  autoDismantleRarities: { [key in Rarity]?: boolean };
+  useAdvancedCombatAI: boolean;
+  fontSize?: number;
+  fontFamily?: string;
 }
 
 export interface SaveSlot {
