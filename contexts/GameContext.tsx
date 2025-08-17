@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useCallback, useContext, useEffect, ReactNode } from 'react';
 import { GameScreen, Character, Item, UpgradeMaterial, ImageLibraryItem, SaveSlot, AppSettings, SaveFile, WorldState, ItemType, Poi, Quest, QuestStatus, QuestType, DialogueState, DialogueTurn, SoulEffect, BaseStats, Difficulty, GameContextType, Rarity, TerrainType, SkillType, Pet, PetStatus, UpgradeConsumable, ExplorationEventLog, ExplorationEvent, CultivationTechnique, Faction, SectStoreItem, DialogueAIResponse, NpcTemplate, MonsterTemplate, DungeonState, DungeonFloorType, Skill, ForgeOptions, Stat, MonsterRank, Element, MetNpcInfo, LogType, ServantTask, Servant } from '../types';
 import { createInitialCharacter, fullyUpdateCharacter, createMonster, getDismantleResult, generateItem, gainExp, convertMonsterToPet, gainExpForPet, fullyUpdatePet, calculateForgingExpToNextLevel, createBoss, getTerrainFromPosition, convertEnemyToServant } from '../services/gameLogic';
@@ -831,7 +832,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             level: 1, // Start at level 1
             ...item.cultivationTechniqueDetails
         };
-        newChar.learnedCultivationTechniques.push(newTechnique);
+        newChar.learnedCultivationTechniques = [...newChar.learnedCultivationTechniques, newTechnique];
         newChar.inventory = newChar.inventory.filter(i => i.id !== item.id);
         setCharacter(await fullyUpdateCharacter(newChar));
         setOneTimeMessages([{id: crypto.randomUUID(), text: `Bạn đã lĩnh hội được [${newTechnique.name}]!`, type: LogType.SYSTEM}]);
