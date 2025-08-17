@@ -227,6 +227,8 @@ export enum ColorTheme {
     DEFAULT = 'default',
     DEUTERANOPIA = 'deuteranopia', // Red-Green color blindness
     TRITANOPIA = 'tritanopia',    // Blue-Yellow color blindness
+    HIGH_CONTRAST = 'high-contrast',
+    SEPIA = 'sepia',
 }
 
 
@@ -491,6 +493,7 @@ export interface AppSettings {
     fontSize: FontSize;
     storyLogFontSize: FontSize;
     colorTheme: ColorTheme;
+    reduceMotion: boolean;
 }
 
 export interface Faction {

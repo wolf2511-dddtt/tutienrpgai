@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Character, Item, GameScreen, ItemType, ExplorationEventLog, Poi, LogType } from '../types';
 import { processPlayerAction } from '../services/geminiService';

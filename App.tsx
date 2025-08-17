@@ -37,7 +37,14 @@ const AppContent: React.FC = () => {
     // Color theme
     Object.values(ColorTheme).forEach(theme => root.classList.remove(`theme-${theme}`));
     root.classList.add(`theme-${appSettings.colorTheme}`);
-  }, [appSettings.fontSize, appSettings.colorTheme]);
+
+    // Reduce Motion
+    if (appSettings.reduceMotion) {
+      root.classList.add('reduce-motion');
+    } else {
+      root.classList.remove('reduce-motion');
+    }
+  }, [appSettings.fontSize, appSettings.colorTheme, appSettings.reduceMotion]);
 
 
   const renderScreen = () => {

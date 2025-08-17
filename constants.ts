@@ -346,4 +346,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
     fontSize: FontSize.MEDIUM,
     colorTheme: ColorTheme.DEFAULT,
     storyLogFontSize: FontSize.MEDIUM,
+    reduceMotion: false,
 };

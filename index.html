@@ -180,6 +180,86 @@
             --color-danger: #dc2626;
             --color-info: #6366f1;
         }
+
+        html.theme-high-contrast {
+            --color-bg-main: #000000;
+            --color-bg-secondary: #1a1a1a;
+            --color-bg-tertiary: #333333;
+            --color-bg-quaternary: #4d4d4d;
+
+            --color-text-light: #ffffff;
+            --color-text-medium: #e6e6e6;
+            --color-text-dark: #cccccc;
+            
+            --color-primary: #ffff00; /* Bright Yellow */
+            --color-primary-light: #ffff7f;
+            --color-primary-dark: #cccc00;
+            --color-primary-darker: #999900;
+            --color-primary-bg: rgba(255, 255, 0, 0.2);
+            --color-primary-pulse-glow: rgba(255, 255, 0, 0.8);
+            --color-primary-pulse-border: rgba(255, 255, 0, 0.5);
+
+            --color-secondary: #00ffff; /* Bright Cyan */
+            --color-secondary-dark: #00cccc;
+            --color-secondary-bg: rgba(0, 255, 255, 0.2);
+
+            --color-accent: #ff00ff; /* Bright Magenta */
+            --color-accent-light: #ff7fff;
+            --color-accent-dark: #cc00cc;
+            --color-accent-bg: rgba(255, 0, 255, 0.2);
+
+            --color-success: #00ff00; /* Bright Green */
+            --color-danger: #ff3333;  /* Bright Red */
+            --color-info: #3399ff;   /* Bright Blue */
+        }
+
+        html.theme-sepia {
+            --color-bg-main: #f4e8d1; /* Parchment */
+            --color-bg-secondary: #eaddc4;
+            --color-bg-tertiary: #d0c4a9;
+            --color-bg-quaternary: #bcae95;
+
+            --color-text-light: #3e2723; /* Dark brown text */
+            --color-text-medium: #5d4037;
+            --color-text-dark: #795548;
+            
+            --color-primary: #8d6e63; /* Brownish primary */
+            --color-primary-light: #a1887f;
+            --color-primary-dark: #6d4c41;
+            --color-primary-darker: #4e342e;
+            --color-primary-bg: rgba(109, 76, 65, 0.15);
+            --color-primary-pulse-glow: rgba(141, 110, 99, 0.8);
+            --color-primary-pulse-border: rgba(141, 110, 99, 0.5);
+
+            --color-secondary: #00695c; /* Teal */
+            --color-secondary-dark: #004d40;
+            --color-secondary-bg: rgba(0, 105, 92, 0.15);
+
+            --color-accent: #c62828; /* Deep Red */
+            --color-accent-light: #e53935;
+            --color-accent-dark: #b71c1c;
+            --color-accent-bg: rgba(198, 40, 40, 0.15);
+
+            --color-success: #2e7d32; /* Dark Green */
+            --color-danger: #c62828;  /* Deep Red */
+            --color-info: #1565c0;   /* Dark Blue */
+        }
+        
+        html.reduce-motion .animate-fade-in,
+        html.reduce-motion .animate-float-up,
+        html.reduce-motion .animate-screen-shake,
+        html.reduce-motion .animate-pulse-glow,
+        html.reduce-motion .animate-pulse-border,
+        html.reduce-motion .animate-fade-in-right,
+        html.reduce-motion .animate-fade-in-left,
+        html.reduce-motion .animate-scale-up,
+        html.reduce-motion [class*="animate-"] {
+            animation: none;
+        }
+
+        html.reduce-motion * {
+            transition: none !important;
+        }
     </style>
 <script type="importmap">
 {

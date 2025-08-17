@@ -114,13 +114,35 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                             </div>
                             <div>
                                 <label className="block text-[var(--color-text-medium)] mb-2">Chủ đề màu sắc</label>
-                                <div className="flex flex-col gap-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <button onClick={() => handleChange('colorTheme', ColorTheme.DEFAULT)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.DEFAULT ? 'bg-purple-600 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Mặc định</button>
-                                    <button onClick={() => handleChange('colorTheme', ColorTheme.DEUTERANOPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.DEUTERANOPIA ? 'bg-sky-500 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Hỗ trợ mù màu (Đỏ/Lục)</button>
-                                    <button onClick={() => handleChange('colorTheme', ColorTheme.TRITANOPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.TRITANOPIA ? 'bg-pink-500 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Hỗ trợ mù màu (Lam/Vàng)</button>
+                                    <button onClick={() => handleChange('colorTheme', ColorTheme.DEUTERANOPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.DEUTERANOPIA ? 'bg-sky-500 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Mù màu (Đỏ/Lục)</button>
+                                    <button onClick={() => handleChange('colorTheme', ColorTheme.TRITANOPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.TRITANOPIA ? 'bg-pink-500 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Mù màu (Lam/Vàng)</button>
+                                    <button onClick={() => handleChange('colorTheme', ColorTheme.HIGH_CONTRAST)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.HIGH_CONTRAST ? 'bg-yellow-400 text-black' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Tương phản cao</button>
+                                    <button onClick={() => handleChange('colorTheme', ColorTheme.SEPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.SEPIA ? 'bg-[#8d6e63] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Giấy Cổ</button>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <div>
+                        <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">Hỗ Trợ Truy Cập</h3>
+                         <label className="flex items-center justify-between cursor-pointer bg-[var(--color-bg-secondary)] p-3 rounded-md hover:bg-gray-700" onClick={() => { handleChange('reduceMotion', !currentSettings.reduceMotion); }}>
+                            <div>
+                                <span className="font-semibold text-[var(--color-primary-light)]">Giảm Chuyển Động</span>
+                                <p className="text-xs text-[var(--color-text-dark)]">Tắt các hiệu ứng chuyển động không cần thiết.</p>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    readOnly
+                                    checked={currentSettings.reduceMotion}
+                                    className="sr-only"
+                                />
+                                <div className={`block w-14 h-8 rounded-full ${currentSettings.reduceMotion ? 'bg-[var(--color-primary-dark)]' : 'bg-[var(--color-bg-quaternary)]'}`}></div>
+                                <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${currentSettings.reduceMotion ? 'transform translate-x-6' : ''}`}></div>
+                            </div>
+                        </label>
                     </div>
 
                     <div>
