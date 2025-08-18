@@ -1,25 +1,10 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Character, Item, UpgradeMaterial, AttackResult, Skill, SkillType, ActiveEffect, TargetType, Pet, Combatant, UpgradeConsumable, Rarity, CombatLogEntry, MonsterRank, Element, SkillEffectType } from '../types';
 import { performAttack, useSkill, generateItem } from '../services/gameLogic';
 import ItemCard from './ItemCard';
 import { useGame } from '../contexts/GameContext';
 import { DIFFICULTY_MODIFIERS, MONSTER_RANK_MODIFIERS, ELEMENT_ICONS } from '../constants';
-
-const EffectIcon: React.FC<{ effect: ActiveEffect }> = ({ effect }) => {
-    const iconMap: { [key: string]: string } = { 'BUFF': '⬆️', 'DEBUFF': '⬇️', 'DOT': '🔥', 'HOT': '💚', 'STUN': '💫', };
-    const icon = iconMap[effect.effect.type] || '🌀';
-    return (
-        <div className="relative group">
-            <span className="text-lg cursor-pointer">{icon}</span>
-            <div className="absolute bottom-full mb-2 w-48 bg-black/80 text-white text-xs rounded-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                <p className="font-bold">{effect.sourceSkillName}</p>
-                <p>{effect.effect.description}</p>
-                <p>Còn {effect.remainingTurns} lượt.</p>
-            </div>
-        </div>
-    );
-};
+import StatusEffectDisplay from './StatusEffectDisplay';
 
 const CombatantDisplay: React.FC<{ combatant: Combatant, isPlayerSide: boolean, isActiveTurn: boolean }> = ({ combatant, isPlayerSide, isActiveTurn }) => {
     const hpPercentage = combatant.derivedStats.HP > 0 ? (combatant.currentHp / combatant.derivedStats.HP) * 100 : 0;
@@ -67,11 +52,9 @@ const CombatantDisplay: React.FC<{ combatant: Combatant, isPlayerSide: boolean, 
                         </div>
                     )}
                 </div>
-                {combatant.activeEffects.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2 justify-center">
-                        {combatant.activeEffects.map(effect => <EffectIcon key={effect.id} effect={effect} />)}
-                    </div>
-                )}
+                <div className="mt-3 min-h-[32px] flex items-center justify-center">
+                    <StatusEffectDisplay effects={combatant.activeEffects} />
+                </div>
             </div>
         </div>
     );

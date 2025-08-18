@@ -1,6 +1,7 @@
 import React from 'react';
 import { Character } from '../types';
 import { useGame } from '../contexts/GameContext';
+import StatusEffectDisplay from './StatusEffectDisplay';
 
 const StatBar: React.FC<{ current: number, max: number, barGradient: string, label: string, labelColor: string }> = ({ current, max, barGradient, label, labelColor }) => {
     const percentage = max > 0 ? (current / max) * 100 : 0;
@@ -44,7 +45,7 @@ const CharacterStatusHeader: React.FC<{ character: Character }> = ({ character }
     };
 
     return (
-        <div className="bg-[var(--color-backdrop-bg)] p-3 rounded-xl border border-[var(--color-border-base)] backdrop-blur-sm shadow-lg flex items-center gap-6 w-fit">
+        <div className="bg-[var(--color-backdrop-bg)] p-3 rounded-xl border border-[var(--color-border-base)] backdrop-blur-sm shadow-lg flex items-center gap-4 w-fit">
             <div className="flex-shrink-0">
                 <h2 className="font-bold text-xl truncate" style={characterNameStyle}>{character.name}</h2>
                 <p className="text-sm text-[var(--color-text-medium)]">Cấp {character.level} {character.playerClass}</p>
@@ -55,6 +56,11 @@ const CharacterStatusHeader: React.FC<{ character: Character }> = ({ character }
                 <StatBar current={character.currentMp} max={character.derivedStats.MP} barGradient="bg-gradient-to-r from-blue-500 to-blue-700" label="MP" labelColor="bg-blue-600" />
                 <ExpBar current={character.exp} max={character.expToNextLevel} />
             </div>
+            {character.activeEffects.length > 0 && (
+                 <div className="border-l-2 border-[var(--color-border-base)] pl-4 ml-2">
+                     <StatusEffectDisplay effects={character.activeEffects} />
+                </div>
+            )}
         </div>
     );
 };
