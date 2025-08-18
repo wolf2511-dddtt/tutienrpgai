@@ -1,13 +1,13 @@
 
 import React from 'react';
 import { useGame } from '../contexts/GameContext';
-import { MonsterTemplate, Element } from '../types';
+import { MonsterTemplate, Element, TerrainType } from '../types';
 import { TERRAIN_BACKGROUNDS } from '../data/terrainBackgrounds';
 import { ELEMENT_ICONS, ELEMENT_COLORS } from '../constants';
 
 const BestiaryEntry: React.FC<{ monster: MonsterTemplate }> = ({ monster }) => {
     const { discovered, name, description, habitats, baseClass, imageUrl, element } = monster;
-    const backgroundUrl = habitats.length > 0 ? TERRAIN_BACKGROUNDS[habitats[0]] : TERRAIN_BACKGROUNDS.PLAIN;
+    const backgroundUrl = habitats.length > 0 ? TERRAIN_BACKGROUNDS[habitats[0]] : TERRAIN_BACKGROUNDS[TerrainType.PLAIN];
 
     if (!discovered) {
         return (
