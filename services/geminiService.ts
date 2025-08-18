@@ -5,13 +5,26 @@ import { loadApiKeys } from "./storageService";
 import { RARITY_DATA } from "../constants";
 
 let ai: GoogleGenAI | null = null;
+let tokenUsageCallback: ((tokens: number) => void) | null = null;
+
+export function setTokenUsageCallback(callback: (tokens: number) => void) {
+    tokenUsageCallback = callback;
+}
+
+function reportTokenUsage(response: any) {
+    if (tokenUsageCallback && response?.usageMetadata?.totalTokenCount) {
+        tokenUsageCallback(response.usageMetadata.totalTokenCount);
+    }
+}
 
 // Helper function to handle API calls with retry logic for rate limiting
 async function callGeminiWithRetry<T>(apiCall: () => Promise<T>, maxRetries = 3, initialDelay = 5000): Promise<T> {
     let retries = 0;
     while (true) {
         try {
-            return await apiCall();
+            const response = await apiCall();
+            reportTokenUsage(response);
+            return response;
         } catch (error: any) {
             const errorMessage = (error.message || error.toString()).toLowerCase();
             // Check for common rate limit / quota exhaustion messages, now including internal errors

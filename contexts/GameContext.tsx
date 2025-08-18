@@ -43,6 +43,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isStartingCombat, setIsStartingCombat] = useState(false);
     // This state is used to temporarily hold the selected pet ID for some actions
     const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+    const [tokenUsage, setTokenUsage] = useState({ used: 0, limit: appSettings.tokenLimit, tokensPerRequest: [] as number[] });
 
 
     const refreshSaveSlots = useCallback(() => {
@@ -51,7 +52,18 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         geminiService.reinitializeAiClient();
+        geminiService.setTokenUsageCallback((tokens: number) => {
+            setTokenUsage(prev => ({
+                ...prev,
+                used: prev.used + tokens,
+                tokensPerRequest: [...prev.tokensPerRequest, tokens].slice(-100)
+            }));
+        });
     }, []);
+
+    useEffect(() => {
+        setTokenUsage(prev => ({ ...prev, limit: appSettings.tokenLimit }));
+    }, [appSettings.tokenLimit]);
 
     useEffect(() => {
         const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -1418,7 +1430,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         screen, character, enemy, itemInForge, initialForgeTab, imageLibrary, appSettings,
         worldState, saveSlots, isFullscreen, activePoiIdForDialogue, transientDialogue, oneTimeMessages,
         designedWorldPrompt, designedWorldStoryInfo, contextualActions, isGeneratingActions,
-        isQuickPlayLoading, levelUpInfo, clearLevelUpInfo, setScreen, handleCreateGame, handleQuickPlay,
+        isQuickPlayLoading, levelUpInfo, tokenUsage, clearLevelUpInfo, setScreen, handleCreateGame, handleQuickPlay,
         handleStartCombat, handleCombatEnd, handleOpenForge, handleCloseForge, handleUpgradeAttempt,
         handleUpdateCharacterAndWorld, handlePlayerMove, handlePlayerRecover, handleSaveGame,
         handleLoadGame, handleDeleteSave, handleSettingsChange, handleUpdateImageLibrary,

@@ -355,4 +355,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
     colorTheme: ColorTheme.DEFAULT,
     reduceMotion: false,
     displaySettings: DEFAULT_DISPLAY_SETTINGS,
+    tokenLimit: 1000000,
 };

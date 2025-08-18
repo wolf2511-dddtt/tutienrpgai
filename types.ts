@@ -502,6 +502,7 @@ export interface AppSettings {
     colorTheme: ColorTheme;
     reduceMotion: boolean;
     displaySettings: DisplaySettings;
+    tokenLimit: number;
 }
 
 export interface Faction {
@@ -716,6 +717,7 @@ export interface GameContextType {
     isGeneratingActions: boolean;
     isQuickPlayLoading: boolean;
     levelUpInfo: { newLevel: number, realmChanged: boolean, newRealm: string } | null;
+    tokenUsage: { used: number; limit: number; tokensPerRequest: number[] };
     clearLevelUpInfo: () => void;
     setScreen: (screen: GameScreen) => void;
     handleCreateGame: (name: string, playerClass: string, classDefinition: BaseStats | undefined, characterContext: string, worldPrompt: string, worldKeywords: string, difficulty: Difficulty, storyInfo?: { title: string; author: string }) => Promise<void>;
