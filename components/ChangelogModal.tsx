@@ -20,20 +20,20 @@ const ChangeTypeBadge: React.FC<{ type: ChangelogEntry['changes'][0]['type'] }> 
 const ChangelogModal: React.FC<ChangelogModalProps> = ({ onClose }) => {
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-md p-4 animate-fade-in">
-            <div className="bg-[#1f2937] border border-gray-700 rounded-2xl shadow-2xl p-8 w-full max-w-2xl text-white relative max-h-[90vh] flex flex-col">
+            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-2xl shadow-2xl p-8 w-full max-w-2xl text-white relative max-h-[90vh] flex flex-col">
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl z-10">&times;</button>
-                <h2 className="text-3xl font-bold text-center text-orange-400 mb-6 flex-shrink-0">Lịch Sử Cập Nhật</h2>
+                <h2 className="text-3xl font-bold text-center text-[var(--color-accent-light)] mb-6 flex-shrink-0">Lịch Sử Cập Nhật</h2>
                 
                 <div className="flex-grow overflow-y-auto pr-4 space-y-8">
                     {CHANGELOG_DATA.map(entry => (
                         <div key={entry.version}>
-                            <div className="flex items-baseline gap-3 mb-3 pb-2 border-b border-gray-700">
-                                <h3 className="text-2xl font-semibold text-orange-300">Phiên bản {entry.version}</h3>
-                                <span className="text-sm text-gray-400">{entry.date}</span>
+                            <div className="flex items-baseline gap-3 mb-3 pb-2 border-b border-[var(--color-border-base)]">
+                                <h3 className="text-2xl font-semibold text-[var(--color-accent)]">{entry.version}</h3>
+                                <span className="text-sm text-[var(--color-text-dark)]">{entry.date}</span>
                             </div>
                             <ul className="space-y-3">
                                 {entry.changes.map((change, index) => (
-                                    <li key={index} className="flex items-start gap-4 text-gray-300 leading-relaxed">
+                                    <li key={index} className="flex items-start gap-4 text-[var(--color-text-medium)] leading-relaxed">
                                         <ChangeTypeBadge type={change.type} />
                                         <span>{change.description}</span>
                                     </li>

@@ -77,7 +77,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     return (
         <>
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-md p-4">
-            <div className="bg-[var(--color-bg-main)] border border-[var(--color-bg-tertiary)] rounded-2xl shadow-2xl p-8 w-full max-w-lg text-[var(--color-text-light)] relative max-h-[90vh] overflow-y-auto">
+            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-2xl shadow-2xl p-8 w-full max-w-lg text-[var(--color-text-light)] relative max-h-[90vh] overflow-y-auto">
                 <button onClick={onClose} className="absolute top-4 right-4 text-[var(--color-text-dark)] hover:text-[var(--color-text-light)] text-3xl z-10">&times;</button>
                 <h2 className="text-3xl font-bold text-center text-[var(--color-primary-light)] mb-6">Thiết Lập</h2>
 
@@ -106,24 +106,24 @@ AIzaSy..."
                     
                      <div>
                         <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">Giao Diện</h3>
-                        <button onClick={() => setIsDisplaySettingsOpen(true)} className="w-full bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-tertiary)] text-[var(--color-primary-light)] font-bold py-3 px-4 rounded-lg transition-colors border-2 border-[var(--color-bg-quaternary)]">
+                        <button onClick={() => setIsDisplaySettingsOpen(true)} className="w-full bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-[var(--color-primary-light)] font-bold py-3 px-4 rounded-lg transition-colors border-2 border-[var(--color-bg-quaternary)]">
                             Cài Đặt Hiển Thị Gameplay
                         </button>
                         <div className="mt-4">
                             <label className="block text-[var(--color-text-medium)] mb-2">Chủ đề màu sắc</label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <button onClick={() => handleChange('colorTheme', ColorTheme.DEFAULT)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.DEFAULT ? 'bg-purple-600 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Mặc định</button>
-                                <button onClick={() => handleChange('colorTheme', ColorTheme.DEUTERANOPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.DEUTERANOPIA ? 'bg-sky-500 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Mù màu (Đỏ/Lục)</button>
-                                <button onClick={() => handleChange('colorTheme', ColorTheme.TRITANOPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.TRITANOPIA ? 'bg-pink-500 text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Mù màu (Lam/Vàng)</button>
-                                <button onClick={() => handleChange('colorTheme', ColorTheme.HIGH_CONTRAST)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.HIGH_CONTRAST ? 'bg-yellow-400 text-black' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Tương phản cao</button>
-                                <button onClick={() => handleChange('colorTheme', ColorTheme.SEPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.SEPIA ? 'bg-[#8d6e63] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-gray-600'}`}>Giấy Cổ</button>
+                                <button onClick={() => handleChange('colorTheme', ColorTheme.DEFAULT)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.DEFAULT ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)]'}`}>Mặc định</button>
+                                <button onClick={() => handleChange('colorTheme', ColorTheme.DEUTERANOPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.DEUTERANOPIA ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)]'}`}>Mù màu (Đỏ/Lục)</button>
+                                <button onClick={() => handleChange('colorTheme', ColorTheme.TRITANOPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.TRITANOPIA ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)]'}`}>Mù màu (Lam/Vàng)</button>
+                                <button onClick={() => handleChange('colorTheme', ColorTheme.HIGH_CONTRAST)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.HIGH_CONTRAST ? 'bg-[var(--color-primary)] text-black' : 'bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)]'}`}>Tương phản cao</button>
+                                <button onClick={() => handleChange('colorTheme', ColorTheme.SEPIA)} className={`p-2 rounded-md text-sm transition ${currentSettings.colorTheme === ColorTheme.SEPIA ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)]'}`}>Giấy Cổ</button>
                             </div>
                         </div>
                     </div>
 
                     <div>
                         <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">Hỗ Trợ Truy Cập</h3>
-                         <label className="flex items-center justify-between cursor-pointer bg-[var(--color-bg-secondary)] p-3 rounded-md hover:bg-gray-700" onClick={() => { handleChange('reduceMotion', !currentSettings.reduceMotion); }}>
+                         <label className="flex items-center justify-between cursor-pointer bg-[var(--color-bg-secondary)] p-3 rounded-md hover:bg-[var(--color-bg-tertiary)]" onClick={() => { handleChange('reduceMotion', !currentSettings.reduceMotion); }}>
                             <div>
                                 <span className="font-semibold text-[var(--color-primary-light)]">Giảm Chuyển Động</span>
                                 <p className="text-xs text-[var(--color-text-dark)]">Tắt các hiệu ứng chuyển động không cần thiết.</p>
@@ -143,7 +143,7 @@ AIzaSy..."
 
                     <div>
                         <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">Tính Năng AI</h3>
-                        <label className="flex items-center justify-between cursor-pointer bg-[var(--color-bg-secondary)] p-3 rounded-md hover:bg-gray-700" onClick={() => { handleChange('useAdvancedCombatAI', !currentSettings.useAdvancedCombatAI); }}>
+                        <label className="flex items-center justify-between cursor-pointer bg-[var(--color-bg-secondary)] p-3 rounded-md hover:bg-[var(--color-bg-tertiary)]" onClick={() => { handleChange('useAdvancedCombatAI', !currentSettings.useAdvancedCombatAI); }}>
                             <div>
                                 <span className="font-semibold text-[var(--color-primary-light)]">AI Chiến Đấu Nâng Cao</span>
                                 <p className="text-xs text-[var(--color-text-dark)]">Sử dụng AI để quyết định chiến thuật và tường thuật trận đấu. Có thể gây lỗi nếu dùng quá nhiều.</p>
@@ -166,21 +166,21 @@ AIzaSy..."
                         <p className="text-xs text-[var(--color-text-dark)] mb-2">Chọn độ hiếm để tự động phân giải khi nhặt được.</p>
                         <div className="grid grid-cols-2 gap-2">
                              {rarities.map(rarity => (
-                                <label key={rarity} className="flex items-center space-x-2 cursor-pointer bg-[var(--color-bg-secondary)] p-2 rounded-md hover:bg-gray-700">
+                                <label key={rarity} className="flex items-center space-x-2 cursor-pointer bg-[var(--color-bg-secondary)] p-2 rounded-md hover:bg-[var(--color-bg-tertiary)]">
                                     <input
                                         type="checkbox"
                                         checked={!!currentSettings.autoDismantleRarities[rarity]}
                                         onChange={() => handleAutoDismantleChange(rarity)}
                                         className="h-4 w-4 rounded bg-[var(--color-bg-tertiary)] border-[var(--color-bg-quaternary)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                                     />
-                                    <span>{rarity}</span>
+                                    <span style={{ color: `var(--rarity-${rarity.toLowerCase()}-text)` }}>{rarity}</span>
                                 </label>
                             ))}
                         </div>
                     </div>
 
                     <div className="flex justify-end pt-4">
-                        <button onClick={handleSaveSettings} className="bg-[var(--color-primary-dark)] hover:bg-[var(--color-primary-darker)] text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                        <button onClick={handleSaveSettings} className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white font-bold py-2 px-6 rounded-lg transition-all shadow-md hover:shadow-lg hover:shadow-[var(--color-primary)]">
                             Lưu Thiết Lập
                         </button>
                     </div>

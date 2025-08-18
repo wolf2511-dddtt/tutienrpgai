@@ -195,7 +195,7 @@ const UpgradeTab: React.FC<{ item: Item, setNotification: (notif: { message: str
                      <p className="text-xs text-gray-400 mt-1">{UPGRADE_CONSUMABLES_DATA[UpgradeConsumable.BOT_THAN_TUY].description}</p>
                  </div>
             </div>
-            <button onClick={handleUpgrade} disabled={isUpgrading || item.upgradeLevel >= item.maxUpgrade || !playerHasMaterial} className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center text-xl shadow-lg transform hover:scale-105">
+            <button onClick={handleUpgrade} disabled={isUpgrading || item.upgradeLevel >= item.maxUpgrade || !playerHasMaterial} className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 disabled:bg-gray-600 disabled:from-gray-600 disabled:cursor-not-allowed flex items-center justify-center text-xl shadow-lg transform hover:scale-105">
                 {isUpgrading ? 'Đang Rèn...' : `Cường Hóa +${item.upgradeLevel + 1}`}
             </button>
          </div>
@@ -247,7 +247,7 @@ const EnchantTab: React.FC<{ item: Item, setNotification: (notif: { message: str
                     <p className="text-gray-300">Hiệu ứng: {item.soulEffect.name}</p>
                 </div>
             )}
-            <button onClick={handleEnchant} disabled={!canEnchant || isEnchanting || !!item.soulEffect} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 rounded-lg disabled:bg-gray-600">
+            <button onClick={handleEnchant} disabled={!canEnchant || isEnchanting || !!item.soulEffect} className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 rounded-lg disabled:bg-gray-600 disabled:from-gray-600">
                 {isEnchanting ? 'Đang Khảm Nạm...' : 'Bắt Đầu'}
             </button>
         </div>
@@ -292,7 +292,7 @@ const DismantleTab: React.FC<{ item: Item, setNotification: (notif: { message: s
                     <p className="text-gray-500 italic">Không nhận được nguyên liệu nào.</p>
                 )}
             </div>
-            <button onClick={handleDismantle} disabled={isDismantling} className="w-full bg-red-700 hover:bg-red-800 text-white font-bold py-3 rounded-lg disabled:bg-gray-600">
+            <button onClick={handleDismantle} disabled={isDismantling} className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold py-3 rounded-lg disabled:bg-gray-600 disabled:from-gray-600">
                 {isDismantling ? 'Đang Phân Giải...' : 'Xác Nhận Phân Giải'}
             </button>
         </div>
@@ -352,7 +352,7 @@ const ForgeTab: React.FC<{ setNotification: (notif: { message: string, type: 'su
              </div>
              <p className="text-xs text-gray-500">Dùng càng nhiều Linh Lực, tỉ lệ ra vật phẩm hiếm càng cao.</p>
 
-             <button onClick={handleForge} disabled={isForging || character.currentMp < mpToUse} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg disabled:bg-gray-600">
+             <button onClick={handleForge} disabled={isForging || character.currentMp < mpToUse} className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold py-3 rounded-lg disabled:bg-gray-600 disabled:from-gray-600">
                 {isForging ? 'Đang Rèn...' : 'Bắt Đầu Rèn'}
             </button>
         </div>
@@ -405,7 +405,7 @@ const CraftTab: React.FC<{ setNotification: (notif: { message: string, type: 'su
                                 <li key={key}>{key}: {val}</li>
                             ))}
                         </ul>
-                        <button onClick={() => handleCraft(craftable)} disabled={!canCraft || !!isCrafting} className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg disabled:bg-gray-600">
+                        <button onClick={() => handleCraft(craftable)} disabled={!canCraft || !!isCrafting} className="w-full mt-3 bg-gradient-to-r from-green-600 to-teal-700 hover:from-green-700 hover:to-teal-800 text-white font-bold py-2 rounded-lg disabled:bg-gray-600 disabled:from-gray-600">
                             {isCrafting === craftable.name ? 'Đang Chế Tạo...' : 'Chế Tạo'}
                         </button>
                     </div>
@@ -444,7 +444,7 @@ export const ForgeScreen: React.FC = () => {
                 setActiveTab(tab);
                 if(tab === 'forge' || tab === 'craft') setSelectedItem(null);
             }}
-            className={`flex-1 py-3 text-sm sm:text-base font-semibold transition-colors rounded-t-lg ${activeTab === tab ? 'bg-gray-800/80 text-purple-300 border-b-2 border-purple-400' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800/50'}`}
+            className={`flex-1 py-3 text-sm sm:text-base font-semibold transition-colors rounded-t-lg ${activeTab === tab ? 'bg-[var(--color-bg-secondary)] text-[var(--color-primary-light)] border-b-2 border-[var(--color-primary)]' : 'bg-[var(--color-bg-main)]/50 text-gray-400 hover:bg-[var(--color-bg-secondary)]/70'}`}
         >
             {label}
         </button>
@@ -474,22 +474,22 @@ export const ForgeScreen: React.FC = () => {
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-md p-4 animate-fade-in">
-            <div className="bg-gray-900 border border-purple-500/30 rounded-2xl shadow-2xl w-full max-w-7xl h-[90vh] text-white relative flex flex-col">
-                <header className="flex items-center justify-between p-4 border-b border-gray-700">
-                    <h2 className="text-3xl font-bold text-purple-400">Lò Rèn</h2>
+            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-2xl shadow-2xl w-full max-w-7xl h-[90vh] text-white relative flex flex-col backdrop-blur-md bg-opacity-80">
+                <header className="flex items-center justify-between p-4 border-b border-[var(--color-border-base)]">
+                    <h2 className="text-3xl font-bold text-[var(--color-primary-light)]">Lò Rèn</h2>
                     <button onClick={handleCloseForge} className="text-gray-400 hover:text-white text-3xl z-10">&times;</button>
                 </header>
                 
                 <div className="flex flex-grow overflow-hidden">
                     {/* Left: Inventory */}
-                    <aside className="w-1/3 border-r border-gray-700 p-4 overflow-y-auto">
+                    <aside className="w-1/3 border-r border-[var(--color-border-base)] p-4 overflow-y-auto">
                         <h3 className="text-lg font-semibold text-cyan-300 mb-3">Túi Đồ</h3>
                         <div className="space-y-2">
                              {character.inventory.map(item => {
                                 const rarityInfo = RARITY_DATA[item.rarity];
                                 return (
                                     <div key={item.id} onClick={() => setSelectedItem(item)} className={`p-2 rounded-lg cursor-pointer transition-all border ${selectedItem?.id === item.id ? 'bg-purple-900/50 border-purple-500' : 'bg-gray-800/50 border-transparent hover:border-gray-600'}`}>
-                                        <p className={`${rarityInfo.color} font-semibold`}>{item.name} {item.upgradeLevel > 0 && `+${item.upgradeLevel}`}</p>
+                                        <p style={{ color: rarityInfo.color }} className={`font-semibold`}>{item.name} {item.upgradeLevel > 0 && `+${item.upgradeLevel}`}</p>
                                         <p className="text-xs text-gray-400">Cấp {item.level} {item.type}</p>
                                     </div>
                                 )
@@ -500,7 +500,7 @@ export const ForgeScreen: React.FC = () => {
 
                     {/* Right: Forge Area */}
                     <main className="w-2/3 flex flex-col">
-                        <div className="flex-shrink-0 flex border-b border-gray-700">
+                        <div className="flex-shrink-0 flex border-b border-[var(--color-border-base)]">
                            <TabButton tab="forge" label="Rèn" />
                            <TabButton tab="upgrade" label="Luyện Khí" />
                            <TabButton tab="enchant" label="Khảm Nạm" />

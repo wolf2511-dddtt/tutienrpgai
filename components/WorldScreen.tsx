@@ -45,7 +45,7 @@ const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const NavButton: React.FC<{view: MainView, label: string}> = ({view, label}) => (
         <button 
             onClick={() => setActiveView(view)}
-            className={`flex-shrink-0 px-4 py-2 text-sm sm:text-base rounded-md transition-colors whitespace-nowrap ${activeView === view ? 'bg-purple-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+            className={`flex-shrink-0 px-4 py-2 text-sm sm:text-base rounded-md transition-colors whitespace-nowrap ${activeView === view ? 'bg-[var(--color-primary-dark)] text-white' : 'bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-[var(--color-text-medium)]'}`}
         >
             {label}
         </button>
@@ -53,9 +53,9 @@ const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] animate-fade-in p-2 sm:p-4">
-            <div className="bg-gray-900 border border-purple-500/30 rounded-2xl shadow-2xl w-full max-w-7xl h-[95vh] sm:h-[90vh] text-white relative flex flex-col overflow-hidden">
+            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-2xl shadow-2xl w-full max-w-7xl h-[95vh] sm:h-[90vh] text-white relative flex flex-col overflow-hidden backdrop-blur-md">
                 <button onClick={onClose} className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-white text-3xl z-20">&times;</button>
-                <nav className="w-full flex-shrink-0 bg-gray-800 p-2 border-b border-gray-700">
+                <nav className="w-full flex-shrink-0 bg-[var(--color-bg-main)]/50 p-2 border-b border-[var(--color-border-base)]">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                         <NavButton view="overview" label="Tổng Quan" />
                         <NavButton view="inventory" label="Hành Trang" />
@@ -82,7 +82,7 @@ const MovementPad: React.FC<{ onMove: (direction: 'N' | 'S' | 'E' | 'W') => void
         <button
             onClick={() => onMove(dir)}
             disabled={disabled}
-            className={`bg-gray-700 hover:bg-gray-600 rounded-md p-3 text-lg font-bold transition-colors disabled:opacity-50 ${gridClass}`}
+            className={`bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] rounded-md p-3 text-lg font-bold transition-colors disabled:opacity-50 ${gridClass}`}
         >
             {label}
         </button>
@@ -122,7 +122,7 @@ const PlayerInputPanel: React.FC<{
     };
 
     return (
-        <div className="bg-gray-900/60 p-3 border-t-2 border-gray-700 backdrop-blur-sm">
+        <div className="bg-[var(--color-bg-main)]/60 p-3 border-t-2 border-[var(--color-border-base)] backdrop-blur-sm">
             <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                 <div className="flex-shrink-0">
                     <MovementPad onMove={onMove} disabled={isProcessing} />
@@ -130,17 +130,17 @@ const PlayerInputPanel: React.FC<{
 
                 <div className="space-y-2">
                     {isGeneratingActions && contextualActions.length === 0 ? (
-                        <div className="text-center text-gray-400 p-2 italic">AI đang suy nghĩ...</div>
+                        <div className="text-center text-[var(--color-text-dark)] p-2 italic">AI đang suy nghĩ...</div>
                     ) : (
                         <>
                             {contextualActions.slice(0, 4).map((action, index) => (
-                                <button key={index} onClick={() => onActionSubmit(action)} disabled={isProcessing} className="w-full text-center bg-cyan-800/50 hover:bg-cyan-700/70 border border-cyan-500/30 text-white font-semibold py-2 px-3 rounded-lg transition text-sm disabled:bg-gray-600">
+                                <button key={index} onClick={() => onActionSubmit(action)} disabled={isProcessing} className="w-full text-center bg-[var(--color-secondary)]/10 hover:bg-[var(--color-secondary)]/20 border border-[var(--color-secondary)]/30 text-white font-semibold py-2 px-3 rounded-lg transition text-sm disabled:bg-gray-600">
                                     {action}
                                 </button>
                             ))}
                         </>
                     )}
-                     <button onClick={onPlayerRecover} disabled={isProcessing} className="w-full bg-green-800/50 hover:bg-green-700/70 border border-green-500/30 text-white font-semibold py-2 px-3 rounded-lg transition text-sm disabled:bg-gray-600">Nghỉ Ngơi</button>
+                     <button onClick={onPlayerRecover} disabled={isProcessing} className="w-full bg-green-800/20 hover:bg-green-700/30 border border-green-500/30 text-white font-semibold py-2 px-3 rounded-lg transition text-sm disabled:bg-gray-600">Nghỉ Ngơi</button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-2">
@@ -150,9 +150,9 @@ const PlayerInputPanel: React.FC<{
                         onChange={e => setInputText(e.target.value)} 
                         disabled={isProcessing}
                         placeholder="Bạn muốn làm gì?"
-                        className="w-full bg-gray-800 border-2 border-gray-600 rounded-lg py-2 px-4 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition"
+                        className="w-full bg-[var(--color-bg-secondary)] border-2 border-[var(--color-bg-quaternary)] rounded-lg py-2 px-4 text-white placeholder-[var(--color-text-dark)] focus:outline-none focus:border-[var(--color-primary)] transition"
                     />
-                    <button type="submit" disabled={isProcessing || !inputText.trim()} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg transition disabled:bg-gray-500">
+                    <button type="submit" disabled={isProcessing || !inputText.trim()} className="w-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white font-bold py-2 rounded-lg transition shadow-md hover:shadow-lg hover:shadow-[var(--color-primary)] disabled:bg-gray-500 disabled:from-gray-500 disabled:shadow-none">
                         Gửi
                     </button>
                 </form>
@@ -170,13 +170,13 @@ const GameHeader: React.FC<{
     onExit: () => void;
 }> = ({ onMenu, onMap, onForge, onSaveLoad, onSettings, onExit }) => {
     return (
-        <div className="bg-gray-800/80 p-2 rounded-lg border border-gray-700/50 backdrop-blur-sm flex justify-end items-center gap-2">
-            <button onClick={onMenu} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">Menu</button>
-            <button onClick={onMap} className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition text-sm">Bản Đồ</button>
-            <button onClick={onForge} className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition text-sm">Lò Rèn</button>
-            <button onClick={onSaveLoad} className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition text-sm">Lưu/Tải</button>
-            <button onClick={onSettings} className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition text-sm">Thiết Lập</button>
-            <button onClick={onExit} className="bg-red-800 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition text-sm">Thoát</button>
+        <div className="bg-[var(--color-bg-secondary)]/50 p-2 rounded-lg border border-[var(--color-border-base)] backdrop-blur-sm flex justify-end items-center gap-2">
+            <button onClick={onMenu} className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white font-bold py-2 px-4 rounded-lg transition shadow-sm hover:shadow-md hover:shadow-[var(--color-primary)] text-sm">Menu</button>
+            <button onClick={onMap} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-2 px-4 rounded-lg transition text-sm">Bản Đồ</button>
+            <button onClick={onForge} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-2 px-4 rounded-lg transition text-sm">Lò Rèn</button>
+            <button onClick={onSaveLoad} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-2 px-4 rounded-lg transition text-sm">Lưu/Tải</button>
+            <button onClick={onSettings} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-2 px-4 rounded-lg transition text-sm">Thiết Lập</button>
+            <button onClick={onExit} className="bg-red-800/80 hover:bg-red-700/80 text-white py-2 px-4 rounded-lg transition text-sm">Thoát</button>
         </div>
     );
 };
@@ -297,7 +297,7 @@ const WorldScreen: React.FC = () => {
     return (
         <>
             <div className="min-h-screen bg-gray-900 text-white" style={{ backgroundImage: `url('https://shared.st.dl.eccdnx.com/store_item_assets/steam/apps/3384260/extras/04%E6%88%98%E6%96%97.jpg?t=1734582082')`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
-                <div className="min-h-screen w-full bg-black/60 backdrop-blur-sm flex flex-col relative">
+                <div className="min-h-screen w-full bg-black/70 backdrop-blur-sm flex flex-col relative">
                     
                     <header className="absolute top-0 left-0 right-0 p-4 z-20 flex justify-between items-start pointer-events-none">
                         <div className="pointer-events-auto">
@@ -316,7 +316,7 @@ const WorldScreen: React.FC = () => {
                     </header>
 
                     <main className="flex-grow p-4 pt-40 overflow-hidden">
-                         <div className="h-full bg-gray-900/50 p-4 rounded-xl border border-gray-700 backdrop-blur-sm">
+                         <div className="h-full bg-[var(--color-backdrop-bg)] p-4 rounded-xl border border-[var(--color-border-base)] backdrop-blur-md">
                              <StoryLog logs={eventLog} isProcessing={isProcessing} />
                         </div>
                     </main>

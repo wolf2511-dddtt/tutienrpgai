@@ -4,7 +4,7 @@ import { Character, Item, UpgradeMaterial, AttackResult, Skill, SkillType, Activ
 import { performAttack, useSkill, generateItem } from '../services/gameLogic';
 import ItemCard from './ItemCard';
 import { useGame } from '../contexts/GameContext';
-import { DIFFICULTY_MODIFIERS, MONSTER_RANK_MODIFIERS, ELEMENT_ICONS, ELEMENT_COLORS } from '../constants';
+import { DIFFICULTY_MODIFIERS, MONSTER_RANK_MODIFIERS, ELEMENT_ICONS } from '../constants';
 
 const EffectIcon: React.FC<{ effect: ActiveEffect }> = ({ effect }) => {
     const iconMap: { [key: string]: string } = { 'BUFF': '⬆️', 'DEBUFF': '⬇️', 'DOT': '🔥', 'HOT': '💚', 'STUN': '💫', };
@@ -22,13 +22,6 @@ const EffectIcon: React.FC<{ effect: ActiveEffect }> = ({ effect }) => {
 };
 
 const CombatantDisplay: React.FC<{ combatant: Combatant, isPlayerSide: boolean, isActiveTurn: boolean }> = ({ combatant, isPlayerSide, isActiveTurn }) => {
-    const getHealthBarColor = (current: number, max: number) => {
-        const percentage = (current / max) * 100;
-        if (percentage > 50) return 'bg-green-500';
-        if (percentage > 20) return 'bg-yellow-500';
-        return 'bg-red-500';
-    };
-
     const hpPercentage = combatant.derivedStats.HP > 0 ? (combatant.currentHp / combatant.derivedStats.HP) * 100 : 0;
     const mpPercentage = 'currentMp' in combatant && combatant.derivedStats.MP > 0 ? (combatant.currentMp / combatant.derivedStats.MP) * 100 : 0;
 
@@ -39,7 +32,7 @@ const CombatantDisplay: React.FC<{ combatant: Combatant, isPlayerSide: boolean, 
 
 
     return (
-        <div className={`flex flex-col items-center p-2 sm:p-4 rounded-xl transition-all duration-300 ${isActiveTurn ? 'bg-purple-500/20 animate-pulse-border' : 'bg-black/30'}`}>
+        <div className={`flex flex-col items-center p-2 sm:p-4 rounded-xl transition-all duration-300 bg-[var(--color-backdrop-bg)] backdrop-blur-md border ${isActiveTurn ? 'border-[var(--color-primary-light)] animate-pulse-border' : 'border-[var(--color-border-base)]'}`}>
             {combatant.imageUrl && (
                  <div className={`w-24 h-24 sm:w-32 sm:h-32 mb-4 rounded-lg overflow-hidden border-2 ${isPlayerSide ? 'border-cyan-500/50' : 'border-red-500/50'} shadow-lg`}>
                     <img src={combatant.imageUrl} alt={combatantName} className="w-full h-full object-cover" />
@@ -49,7 +42,7 @@ const CombatantDisplay: React.FC<{ combatant: Combatant, isPlayerSide: boolean, 
                  <div className="flex justify-center items-baseline mb-1 gap-2">
                     {elements.length > 0 && (
                          <div className="relative group flex gap-1">
-                            {elements.map(el => <span key={el} className={`text-lg font-bold ${ELEMENT_COLORS[el]}`}>{ELEMENT_ICONS[el]}</span>)}
+                            {elements.map(el => <span key={el} style={{color: `var(--element-${el.toLowerCase()}-text)`}} className={`text-lg font-bold`}>{ELEMENT_ICONS[el]}</span>)}
                             <div className="absolute bottom-full mb-2 w-28 text-center left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                 Hệ: {elements.join(', ')}
                             </div>
@@ -59,15 +52,15 @@ const CombatantDisplay: React.FC<{ combatant: Combatant, isPlayerSide: boolean, 
                     <span className="text-xs sm:text-sm text-gray-400">Lv. {combatant.level}</span>
                 </div>
                 <div className="space-y-2">
-                    <div className="w-full bg-gray-700 rounded-full h-5 sm:h-6 border-2 border-gray-600 relative">
-                        <div className={`h-full rounded-full transition-all duration-500 ${getHealthBarColor(combatant.currentHp, combatant.derivedStats.HP)}`} style={{ width: `${hpPercentage}%` }}></div>
+                    <div className="w-full bg-black/30 rounded-full h-5 sm:h-6 border border-white/10 relative">
+                        <div className={`h-full rounded-full transition-all duration-500 bg-gradient-to-r from-green-400 to-green-600`} style={{ width: `${hpPercentage}%` }}></div>
                         <div className="absolute w-full h-full top-0 left-0 flex items-center justify-center text-xs font-bold text-white mix-blend-difference">
                            HP: {Math.round(combatant.currentHp).toLocaleString()} / {combatant.derivedStats.HP.toLocaleString()}
                         </div>
                     </div>
                     {isCharacter && (
-                         <div className="w-full bg-gray-700 rounded-full h-5 sm:h-6 border-2 border-gray-600 relative">
-                            <div className="h-full rounded-full transition-all duration-500 bg-blue-500" style={{ width: `${mpPercentage}%` }}></div>
+                         <div className="w-full bg-black/30 rounded-full h-5 sm:h-6 border border-white/10 relative">
+                            <div className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-blue-400 to-blue-600" style={{ width: `${mpPercentage}%` }}></div>
                             <div className="absolute w-full h-full top-0 left-0 flex items-center justify-center text-xs font-bold text-white mix-blend-difference">
                                MP: {Math.round((combatant as Character).currentMp).toLocaleString()} / {combatant.derivedStats.MP.toLocaleString()}
                             </div>
@@ -577,7 +570,7 @@ useEffect(() => {
             {/* Bottom Row: Log and Actions */}
             <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4 overflow-hidden h-48 sm:h-auto">
                 {/* Combat Log */}
-                <div className="md:col-span-2 bg-black/50 p-2 sm:p-4 rounded-lg flex flex-col h-full overflow-hidden">
+                <div className="md:col-span-2 bg-[var(--color-backdrop-bg)] backdrop-blur-md border border-[var(--color-border-base)] p-2 sm:p-4 rounded-lg flex flex-col h-full overflow-hidden">
                     <h3 className="text-lg font-bold text-gray-300 mb-2 flex-shrink-0">Nhật Ký Chiến Đấu</h3>
                     <div className="flex-grow overflow-y-auto space-y-2 flex flex-col-reverse pr-2">
                         {combatLog.map(log => (
@@ -587,14 +580,14 @@ useEffect(() => {
                 </div>
 
                 {/* Actions */}
-                <div className="relative bg-black/50 p-2 sm:p-4 rounded-lg flex flex-col justify-center">
+                <div className="relative bg-[var(--color-backdrop-bg)] backdrop-blur-md border border-[var(--color-border-base)] p-2 sm:p-4 rounded-lg flex flex-col justify-center">
                      {isPlayerTurn && !isCombatOver && (
                         <div className="space-y-2 animate-fade-in">
                             <h3 className="text-lg font-bold text-purple-300 text-center mb-2">Đến lượt bạn!</h3>
-                            <button onClick={handleAttack} className="w-full bg-red-600 hover:bg-red-700 font-bold p-3 rounded-lg text-lg transition-transform transform hover:scale-105">Tấn Công</button>
-                            <button onClick={() => setShowSkillList(true)} className="w-full bg-blue-600 hover:bg-blue-700 font-bold p-3 rounded-lg text-lg transition-transform transform hover:scale-105">Kỹ Năng</button>
-                            {canCatchPet && <button onClick={handleCatchAttempt} className="w-full bg-green-600 hover:bg-green-700 font-bold p-2 rounded-lg text-sm transition-transform transform hover:scale-105">Thu Phục ({linhThuPhuCount})</button>}
-                            {canEnslave && <button onClick={handleEnslaveAttempt} className="w-full bg-purple-700 hover:bg-purple-800 font-bold p-2 rounded-lg text-sm transition-transform transform hover:scale-105">Nô Dịch ({honAnPhuCount})</button>}
+                            <button onClick={handleAttack} className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 font-bold p-3 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-lg">Tấn Công</button>
+                            <button onClick={() => setShowSkillList(true)} className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 font-bold p-3 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-lg">Kỹ Năng</button>
+                            {canCatchPet && <button onClick={handleCatchAttempt} className="w-full bg-gradient-to-r from-green-600 to-green-800 hover:from-green-500 hover:to-green-700 font-bold p-2 rounded-lg text-sm transition-transform transform hover:scale-105 shadow-md">Thu Phục ({linhThuPhuCount})</button>}
+                            {canEnslave && <button onClick={handleEnslaveAttempt} className="w-full bg-gradient-to-r from-purple-700 to-purple-900 hover:from-purple-600 hover:to-purple-800 font-bold p-2 rounded-lg text-sm transition-transform transform hover:scale-105 shadow-md">Nô Dịch ({honAnPhuCount})</button>}
                         </div>
                     )}
                     {!isPlayerTurn && !isCombatOver && (

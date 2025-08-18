@@ -144,12 +144,12 @@ export const CLASS_STATS: { [key in PlayerClass]: { levelUp: BaseStats, realmBon
 };
 
 export const RARITY_DATA = {
-    [Rarity.COMMON]: { color: 'text-gray-400', borderColor: 'border-gray-500/50', multiplier: 1.0, bonusStats: 0, maxUpgrade: 5 },
-    [Rarity.UNCOMMON]: { color: 'text-green-400', borderColor: 'border-green-500/50', multiplier: 1.2, bonusStats: 1, maxUpgrade: 6 },
-    [Rarity.RARE]: { color: 'text-blue-400', borderColor: 'border-blue-500/50', multiplier: 1.5, bonusStats: 2, maxUpgrade: 8 },
-    [Rarity.EPIC]: { color: 'text-purple-400', borderColor: 'border-purple-500/50', multiplier: 1.8, bonusStats: 3, maxUpgrade: 10 },
-    [Rarity.LEGENDARY]: { color: 'text-orange-400', borderColor: 'border-orange-500/50', multiplier: 2.5, bonusStats: 4, maxUpgrade: 12 },
-    [Rarity.MYTHIC]: { color: 'text-red-500 animate-pulse', borderColor: 'border-red-500/50', multiplier: 3.5, bonusStats: 5, maxUpgrade: 15 },
+    [Rarity.COMMON]: { color: 'var(--rarity-common-text)', borderColor: 'var(--rarity-common-border)', multiplier: 1.0, bonusStats: 0, maxUpgrade: 5 },
+    [Rarity.UNCOMMON]: { color: 'var(--rarity-uncommon-text)', borderColor: 'var(--rarity-uncommon-border)', multiplier: 1.2, bonusStats: 1, maxUpgrade: 6 },
+    [Rarity.RARE]: { color: 'var(--rarity-rare-text)', borderColor: 'var(--rarity-rare-border)', multiplier: 1.5, bonusStats: 2, maxUpgrade: 8 },
+    [Rarity.EPIC]: { color: 'var(--rarity-epic-text)', borderColor: 'var(--rarity-epic-border)', multiplier: 1.8, bonusStats: 3, maxUpgrade: 10 },
+    [Rarity.LEGENDARY]: { color: 'var(--rarity-legendary-text)', borderColor: 'var(--rarity-legendary-border)', multiplier: 2.5, bonusStats: 4, maxUpgrade: 12 },
+    [Rarity.MYTHIC]: { color: 'var(--rarity-mythic-text)', borderColor: 'var(--rarity-mythic-border)', multiplier: 3.5, bonusStats: 5, maxUpgrade: 15 },
 };
 
 export const AFFIXES: { [key in AffixId]: Affix } = {
@@ -292,12 +292,12 @@ export const ELEMENT_ICONS: { [key in Element]: string } = {
 };
 
 export const ELEMENT_COLORS: { [key in Element]: string } = {
-    [Element.KIM]: 'text-gray-300',
-    [Element.MOC]: 'text-green-400',
-    [Element.THUY]: 'text-blue-400',
-    [Element.HOA]: 'text-red-500',
-    [Element.THO]: 'text-yellow-600',
-    [Element.VO]: 'text-purple-400',
+    [Element.KIM]: 'var(--element-kim-text)',
+    [Element.MOC]: 'var(--element-moc-text)',
+    [Element.THUY]: 'var(--element-thuy-text)',
+    [Element.HOA]: 'var(--element-hoa-text)',
+    [Element.THO]: 'var(--element-tho-text)',
+    [Element.VO]: 'var(--element-vo-text)',
 };
 // --- End New Elemental System Constants ---
 

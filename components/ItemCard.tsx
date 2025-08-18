@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Item, Rarity, SkillType, Element, ItemType } from '../types';
-import { RARITY_DATA, ELEMENT_ICONS, ELEMENT_COLORS } from '../constants';
+import { RARITY_DATA, ELEMENT_ICONS } from '../constants';
 
 interface ItemCardProps {
   item: Item;
@@ -58,11 +58,11 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onPrimaryAction, isEquipped }
   };
 
   return (
-    <div className={`bg-gray-800 rounded-lg p-4 border ${rarityInfo.borderColor} shadow-lg flex flex-col h-full`}>
+    <div className="bg-gray-800 rounded-lg p-4 border shadow-lg flex flex-col h-full" style={{ borderColor: rarityInfo.borderColor }}>
       <div className="flex justify-between items-start">
-        <h3 className={`text-lg font-bold ${rarityInfo.color}`}>{item.name} {item.upgradeLevel > 0 && `+${item.upgradeLevel}`}</h3>
+        <h3 className="text-lg font-bold" style={{ color: rarityInfo.color }}>{item.name} {item.upgradeLevel > 0 && `+${item.upgradeLevel}`}</h3>
         {item.element && item.element !== Element.VO && (
-            <span className={`text-xs font-bold px-2 py-1 rounded-full ${ELEMENT_COLORS[item.element]}`} title={`Hệ: ${item.element}`}>
+            <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ color: `var(--element-${item.element.toLowerCase()}-text)` }} title={`Hệ: ${item.element}`}>
                 {ELEMENT_ICONS[item.element]} {item.element}
             </span>
         )}

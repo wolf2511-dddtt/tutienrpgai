@@ -117,14 +117,14 @@ const DialogueModal: React.FC = () => {
     const affinityDetails = getAffinityDetails(dialogueState.affinity);
 
     return (
-        <div className="fixed inset-0 bg-gray-900 flex flex-col z-50 animate-fade-in">
-            <header className="bg-gray-800/80 backdrop-blur-sm p-4 flex items-center justify-between border-b border-purple-500/30 shadow-lg">
+        <div className="fixed inset-0 bg-[var(--color-bg-main)] flex flex-col z-50 animate-fade-in">
+            <header className="bg-[var(--color-bg-secondary)]/80 backdrop-blur-sm p-4 flex items-center justify-between border-b border-[var(--color-border-base)] shadow-lg">
                 <div className="flex items-center gap-4">
                     <img src={dialogueState.npcImageUrl || 'https://via.placeholder.com/150'} alt={dialogueState.npcName} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-purple-400" />
                     <div>
-                        <h2 className="text-xl sm:text-2xl font-bold text-purple-300">{npcDisplayName}</h2>
+                        <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-primary-light)]">{npcDisplayName}</h2>
                         <div className="flex items-center gap-2 mt-1">
-                             <p className="text-sm sm:text-md text-gray-400">{dialogueState.npcRole} {dialogueState.factionName ? `(${dialogueState.factionName})` : ''}</p>
+                             <p className="text-sm sm:text-md text-[var(--color-text-dark)]">{dialogueState.npcRole} {dialogueState.factionName ? `(${dialogueState.factionName})` : ''}</p>
                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${affinityDetails.colorClass}`}>
                                 {affinityDetails.label}
                             </span>
@@ -151,7 +151,7 @@ const DialogueModal: React.FC = () => {
                 </div>
             </main>
 
-            <footer className="bg-gray-800/80 backdrop-blur-sm p-2 sm:p-4 border-t border-purple-500/30">
+            <footer className="bg-[var(--color-bg-secondary)]/80 backdrop-blur-sm p-2 sm:p-4 border-t border-[var(--color-border-base)]">
                 {dialogueState.options && dialogueState.options.length > 0 && !isSending && (
                     <div className="max-w-4xl mx-auto flex flex-wrap justify-center gap-2 mb-3">
                         {dialogueState.options.map((option, index) => (
@@ -171,13 +171,13 @@ const DialogueModal: React.FC = () => {
                         value={message}
                         onChange={e => setMessage(e.target.value)}
                         placeholder="Nhập tin nhắn..."
-                        className="flex-1 bg-gray-700 border-2 border-gray-600 rounded-full py-3 px-4 sm:px-6 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition"
+                        className="flex-1 bg-[var(--color-bg-tertiary)] border-2 border-[var(--color-bg-quaternary)] rounded-full py-3 px-4 sm:px-6 text-white placeholder-gray-400 focus:outline-none focus:border-[var(--color-primary)] transition"
                         disabled={isSending}
                     />
                     <button
                         type="submit"
                         disabled={!message.trim() || isSending}
-                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full h-12 w-12 sm:h-14 sm:w-14 flex items-center justify-center transition-all transform hover:scale-110 disabled:bg-gray-600 disabled:scale-100 disabled:cursor-not-allowed flex-shrink-0"
+                        className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white font-bold rounded-full h-12 w-12 sm:h-14 sm:w-14 flex items-center justify-center transition-all transform hover:scale-110 shadow-lg hover:shadow-[var(--color-primary)] disabled:from-gray-600 disabled:to-gray-700 disabled:scale-100 disabled:cursor-not-allowed flex-shrink-0"
                     >
                         {isSending ? <AILoadingSpinner /> : (
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">

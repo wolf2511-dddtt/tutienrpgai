@@ -25,7 +25,7 @@ const ColorPickerInput: React.FC<{ label: string; value: string; onChange: (valu
     return (
         <div ref={wrapperRef} className="relative">
             <label className="block text-sm font-medium text-slate-300 mb-2">{label}</label>
-            <div className="p-[1px] bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg">
+            <div className="p-[1px] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] rounded-lg shadow-md">
                 <button
                     type="button"
                     onClick={() => setIsPickerOpen(!isPickerOpen)}
@@ -47,7 +47,7 @@ const ColorPickerInput: React.FC<{ label: string; value: string; onChange: (valu
 const SelectInput: React.FC<{ label: string; value: string; onChange: (value: string) => void; children: React.ReactNode; id: string; }> = ({ label, value, onChange, children, id }) => (
     <div>
         <label htmlFor={id} className="block text-sm font-medium text-slate-300 mb-2">{label}</label>
-        <div className="relative p-[1px] bg-gradient-to-br from-purple-500 to-blue-500 rounded-md">
+        <div className="relative p-[1px] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] rounded-md shadow-md">
             <select 
                 id={id}
                 value={value}
@@ -65,14 +65,14 @@ const SelectInput: React.FC<{ label: string; value: string; onChange: (value: st
 
 // Reusable component for a titled section of controls
 const SettingsSection: React.FC<{ title: string; onRestore: () => void; children: React.ReactNode }> = ({ title, onRestore, children }) => (
-    <div className="p-[1px] bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg">
+    <div className="p-[1px] bg-gradient-to-br from-[var(--color-primary-dark)] to-[var(--color-secondary-dark)] rounded-lg">
         <div className="bg-slate-800 rounded-[7px] p-4">
             <div className="flex justify-between items-center mb-4">
-                <h4 className="text-lg font-semibold text-blue-300">{title}</h4>
-                <div className="p-[1px] bg-gradient-to-br from-yellow-500 to-yellow-700 rounded-md">
+                <h4 className="text-lg font-semibold text-[var(--color-secondary)]">{title}</h4>
+                <div className="p-[1px] bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent-dark)] rounded-md">
                     <button
                         onClick={onRestore}
-                        className="px-3 py-1.5 text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-yellow-500 rounded-[5px] transition-colors"
+                        className="px-3 py-1.5 text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-[var(--color-accent-light)] rounded-[5px] transition-colors"
                     >
                         Khôi phục
                     </button>
@@ -136,8 +136,8 @@ const FontAndColorSettings: React.FC<FontAndColorSettingsProps> = ({ isOpen, onC
             <style>{`
                 .scrollbar-custom::-webkit-scrollbar { width: 8px; }
                 .scrollbar-custom::-webkit-scrollbar-track { background-color: #1e293b; }
-                .scrollbar-custom::-webkit-scrollbar-thumb { background-color: #8b5cf6; border-radius: 4px; }
-                .scrollbar-custom::-webkit-scrollbar-thumb:hover { background-color: #a78bfa; }
+                .scrollbar-custom::-webkit-scrollbar-thumb { background-color: var(--color-primary); border-radius: 4px; }
+                .scrollbar-custom::-webkit-scrollbar-thumb:hover { background-color: var(--color-primary-light); }
             `}</style>
             <div 
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -147,14 +147,14 @@ const FontAndColorSettings: React.FC<FontAndColorSettingsProps> = ({ isOpen, onC
                 aria-labelledby="display-settings-title"
             >
                 <div 
-                    className="p-[1px] bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg shadow-2xl w-11/12 max-w-2xl"
+                    className="p-[1px] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] rounded-lg shadow-2xl w-11/12 max-w-2xl"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="bg-slate-800 rounded-[7px] flex flex-col max-h-[90vh]">
                         <header className="p-4 flex justify-between items-center flex-shrink-0">
                             <h3 id="display-settings-title" className="text-xl font-bold text-slate-100">Cài Đặt Hiển Thị Gameplay</h3>
                         </header>
-                         <hr className="border-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500 to-transparent flex-shrink-0" />
+                         <hr className="border-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-primary)] to-transparent flex-shrink-0" />
                         <main className="p-6 flex-grow overflow-y-auto space-y-4 scrollbar-custom">
                             <SettingsSection title="Diễn Biến (Tường Thuật)" onRestore={() => restoreSection('aiNarrative')}>
                                  <SelectInput label="Font Chữ" id="ai-font" value={settings.aiNarrative.font} onChange={v => updateSetting('aiNarrative', 'font', v)}>
@@ -195,12 +195,12 @@ const FontAndColorSettings: React.FC<FontAndColorSettingsProps> = ({ isOpen, onC
                                  <ColorPickerInput label="Màu Chữ" value={settings.characterName.textColor} onChange={v => updateSetting('characterName', 'textColor', v)} />
                             </SettingsSection>
                         </main>
-                         <hr className="border-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500 to-transparent flex-shrink-0" />
+                         <hr className="border-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--color-primary)] to-transparent flex-shrink-0" />
                         <footer className="relative p-4 bg-slate-800/80 flex justify-end flex-shrink-0 space-x-3">
                             <button onClick={onClose} className="px-5 py-2 bg-slate-600 hover:bg-slate-500 rounded-md text-white text-sm font-semibold transition-colors duration-200">
                                 Hủy
                             </button>
-                            <button onClick={handleSave} className="px-5 py-2 bg-purple-600 hover:bg-purple-700 rounded-md text-white text-sm font-semibold transition-colors duration-200">
+                            <button onClick={handleSave} className="px-5 py-2 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] hover:from-[var(--color-primary-light)] hover:to-[var(--color-primary)] rounded-md text-white text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg hover:shadow-[var(--color-primary)]">
                                 Lưu
                             </button>
                         </footer>
