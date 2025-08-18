@@ -1,14 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Character, Item, GameScreen, ItemType, ExplorationEventLog, Poi, LogType } from '../types';
+import { Character, GameScreen, ExplorationEventLog, Poi, LogType } from '../types';
 import { processPlayerAction } from '../services/geminiService';
 import { getTerrainFromPosition } from '../services/gameLogic';
 import CharacterStatusHeader from './CharacterStatusHeader';
 import InventoryScreen from './InventoryScreen';
 import ResourcesScreen from './ResourcesScreen';
-import WorldMap from './WorldMap';
 import { useGame } from '../contexts/GameContext';
 import QuestLog from './QuestLog';
-import QuestTracker from './QuestTracker';
 import PetScreen from './PetScreen';
 import CharacterSheet from './CharacterSheet';
 import CultivationScreen from './CultivationScreen';
@@ -17,13 +15,9 @@ import BestiaryScreen from './BestiaryScreen';
 import WorldMapModal from './WorldMapModal';
 import NpcListScreen from './NpcListScreen';
 import StoryLog from './StoryLog';
-import ItemCard from './ItemCard';
-import { RARITY_DATA } from '../constants';
 import CompanionScreen from './CompanionScreen';
 
-type MainView = 'overview' | 'inventory' | 'resources' | 'quests' | 'pets' | 'cultivation' | 'factions' | 'bestiary' | 'npcs' | 'companions';
-type LeftPanelTab = 'actions' | 'inventory' | 'quests';
-type RightPanelContent = { type: 'map' } | { type: 'item'; item: Item };
+type MainView = 'overview' | 'inventory' | 'cultivation' | 'companions' | 'factions' | 'npcs' | 'bestiary' | 'quests' | 'pets' | 'resources';
 
 // --- Menu Modal Component ---
 const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -63,7 +57,6 @@ const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <button onClick={onClose} className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-white text-3xl z-20">&times;</button>
                 <nav className="w-full flex-shrink-0 bg-gray-800 p-2 border-b border-gray-700">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                        <h2 className="hidden sm:block text-xl font-bold text-purple-400 mr-4 px-2 whitespace-nowrap">Bảng Nhân Vật</h2>
                         <NavButton view="overview" label="Tổng Quan" />
                         <NavButton view="inventory" label="Hành Trang" />
                         <NavButton view="cultivation" label="Công Pháp" />
@@ -96,7 +89,7 @@ const MovementPad: React.FC<{ onMove: (direction: 'N' | 'S' | 'E' | 'W') => void
     );
 
     return (
-        <div className="grid grid-cols-3 grid-rows-3 gap-2 w-40 mx-auto">
+        <div className="grid grid-cols-3 grid-rows-3 gap-2 w-32 mx-auto">
             <div />
             <Button dir="N" label="↑" gridClass="col-start-2" />
             <div />
@@ -110,12 +103,90 @@ const MovementPad: React.FC<{ onMove: (direction: 'N' | 'S' | 'E' | 'W') => void
     );
 };
 
+const PlayerInputPanel: React.FC<{
+    contextualActions: string[];
+    isGeneratingActions: boolean;
+    isProcessing: boolean;
+    onActionSubmit: (action: string) => void;
+    onPlayerRecover: () => void;
+    onMove: (direction: 'N' | 'S' | 'E' | 'W') => void;
+}> = ({ contextualActions, isGeneratingActions, isProcessing, onActionSubmit, onPlayerRecover, onMove }) => {
+    const [inputText, setInputText] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (inputText.trim()) {
+            onActionSubmit(inputText.trim());
+            setInputText('');
+        }
+    };
+
+    return (
+        <div className="bg-gray-900/60 p-3 border-t-2 border-gray-700 backdrop-blur-sm">
+            <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <div className="flex-shrink-0">
+                    <MovementPad onMove={onMove} disabled={isProcessing} />
+                </div>
+
+                <div className="space-y-2">
+                    {isGeneratingActions && contextualActions.length === 0 ? (
+                        <div className="text-center text-gray-400 p-2 italic">AI đang suy nghĩ...</div>
+                    ) : (
+                        <>
+                            {contextualActions.slice(0, 4).map((action, index) => (
+                                <button key={index} onClick={() => onActionSubmit(action)} disabled={isProcessing} className="w-full text-center bg-cyan-800/50 hover:bg-cyan-700/70 border border-cyan-500/30 text-white font-semibold py-2 px-3 rounded-lg transition text-sm disabled:bg-gray-600">
+                                    {action}
+                                </button>
+                            ))}
+                        </>
+                    )}
+                     <button onClick={onPlayerRecover} disabled={isProcessing} className="w-full bg-green-800/50 hover:bg-green-700/70 border border-green-500/30 text-white font-semibold py-2 px-3 rounded-lg transition text-sm disabled:bg-gray-600">Nghỉ Ngơi</button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+                    <input 
+                        type="text" 
+                        value={inputText} 
+                        onChange={e => setInputText(e.target.value)} 
+                        disabled={isProcessing}
+                        placeholder="Bạn muốn làm gì?"
+                        className="w-full bg-gray-800 border-2 border-gray-600 rounded-lg py-2 px-4 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition"
+                    />
+                    <button type="submit" disabled={isProcessing || !inputText.trim()} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg transition disabled:bg-gray-500">
+                        Gửi
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const GameHeader: React.FC<{
+    onMenu: () => void;
+    onMap: () => void;
+    onForge: () => void;
+    onSaveLoad: () => void;
+    onSettings: () => void;
+    onExit: () => void;
+}> = ({ onMenu, onMap, onForge, onSaveLoad, onSettings, onExit }) => {
+    return (
+        <div className="bg-gray-800/80 p-2 rounded-lg border border-gray-700/50 backdrop-blur-sm flex justify-end items-center gap-2">
+            <button onClick={onMenu} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">Menu</button>
+            <button onClick={onMap} className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition text-sm">Bản Đồ</button>
+            <button onClick={onForge} className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition text-sm">Lò Rèn</button>
+            <button onClick={onSaveLoad} className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition text-sm">Lưu/Tải</button>
+            <button onClick={onSettings} className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition text-sm">Thiết Lập</button>
+            <button onClick={onExit} className="bg-red-800 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition text-sm">Thoát</button>
+        </div>
+    );
+};
+
 
 const WorldScreen: React.FC = () => {
     const { 
         character, 
-        worldState,
         appSettings,
+        worldState,
         oneTimeMessages,
         setOneTimeMessages,
         contextualActions,
@@ -127,9 +198,7 @@ const WorldScreen: React.FC = () => {
         handlePlayerMove,
         handlePlayerRecover,
         handleBackToMenu,
-        handleOpenDialogue,
-        handleEquipItem,
-        handleUnequipItem
+        handleOpenDialogue
     } = useGame();
 
     const [eventLog, setEventLog] = useState<ExplorationEventLog[]>([]);
@@ -137,8 +206,6 @@ const WorldScreen: React.FC = () => {
     
     const [isMapModalOpen, setIsMapModalOpen] = useState(false);
     const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
-    const [leftPanelTab, setLeftPanelTab] = useState<LeftPanelTab>('actions');
-    const [rightPanelContent, setRightPanelContent] = useState<RightPanelContent>({ type: 'map' });
 
     useEffect(() => {
         const initialLogs: ExplorationEventLog[] = [];
@@ -169,7 +236,6 @@ const WorldScreen: React.FC = () => {
     const handleMove = useCallback(async (direction: 'N' | 'S' | 'E' | 'W') => {
         if (isProcessing) return;
         setIsProcessing(true);
-        setRightPanelContent({type: 'map'}); // Switch back to map on move
         
         const moveAmount = 128;
         let newPos = { ...character.position };
@@ -206,7 +272,15 @@ const WorldScreen: React.FC = () => {
         
         await handleGenerateContextualActions();
         setIsProcessing(false);
-    }, [character, worldState, isProcessing, appSettings.difficulty, handleStartCombat, handleGenerateContextualActions]);
+    }, [character, isProcessing, appSettings.difficulty, handleStartCombat, handleGenerateContextualActions]);
+
+    const handlePlayerRecoverWithProcessing = async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+        await handlePlayerRecover();
+        await handleGenerateContextualActions();
+        setIsProcessing(false);
+    };
 
     const handleBackToMenuWithConfirmation = useCallback(() => {
         if (window.confirm("Bạn có chắc muốn trở về menu chính? Mọi tiến trình chưa lưu sẽ bị mất.")) {
@@ -219,129 +293,52 @@ const WorldScreen: React.FC = () => {
         setIsMapModalOpen(false);
     };
 
-    const LeftPanel = () => {
-        const TabButton: React.FC<{tab: LeftPanelTab, label: string}> = ({tab, label}) => (
-            <button 
-                onClick={() => setLeftPanelTab(tab)}
-                className={`flex-1 py-2 text-sm font-semibold transition-colors rounded-t-md ${leftPanelTab === tab ? 'bg-gray-800 text-purple-300' : 'bg-gray-900 text-gray-400 hover:bg-gray-800'}`}
-            >
-                {label}
-            </button>
-        );
-
-        const CompactInventory = () => {
-             const InventoryItemTile: React.FC<{ item: Item }> = ({ item }) => {
-                const rarityInfo = RARITY_DATA[item.rarity];
-                const isSelected = rightPanelContent.type === 'item' && rightPanelContent.item.id === item.id;
-                return (
-                    <div 
-                        onClick={() => setRightPanelContent({type: 'item', item: item})}
-                        className={`relative aspect-square p-1.5 rounded-md cursor-pointer flex flex-col justify-between transition-all border-2 ${isSelected ? 'border-yellow-400 bg-yellow-900/50' : `${rarityInfo.borderColor} bg-gray-900/50 hover:bg-gray-700/50`}`}
-                        title={item.name}
-                    >
-                        <p className={`text-[10px] leading-tight font-semibold truncate ${rarityInfo.color}`}>{item.name}</p>
-                        <div className="flex justify-between items-end">
-                            <p className="text-[10px] text-gray-400">C{item.level}</p>
-                            {item.upgradeLevel > 0 && <p className="text-[10px] font-bold text-white">+{item.upgradeLevel}</p>}
-                        </div>
-                    </div>
-                );
-            };
-            return (
-                 <div className="grid grid-cols-4 gap-2 p-2 bg-black/20 rounded-b-lg">
-                        {character.inventory.map(item => <InventoryItemTile key={item.id} item={item} />)}
-                 </div>
-            )
-        };
-
-        return (
-            <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 h-full flex flex-col gap-4">
-                <CharacterStatusHeader character={character} />
-                
-                <div className="flex-grow flex flex-col bg-gray-900 rounded-lg border border-gray-700">
-                    <div className="flex-shrink-0 flex">
-                        <TabButton tab="actions" label="Hành Động" />
-                        <TabButton tab="inventory" label="Hành Trang" />
-                        <TabButton tab="quests" label="Nhiệm Vụ" />
-                    </div>
-                    <div className="flex-grow overflow-y-auto p-3">
-                        {leftPanelTab === 'actions' && (
-                            <div className="space-y-4">
-                                <MovementPad onMove={handleMove} disabled={isProcessing} />
-                                 {isGeneratingActions && contextualActions.length === 0 ? (
-                                    <div className="text-center text-gray-400 p-2">Đang nghĩ...</div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {contextualActions.map((action, index) => (
-                                            <button key={index} onClick={() => handleActionSubmit(action)} disabled={isProcessing} className="w-full text-left bg-cyan-800/50 hover:bg-cyan-700/70 border border-cyan-500/30 text-white font-semibold py-2 px-3 rounded-lg transition text-sm disabled:bg-gray-600">
-                                                {action}
-                                            </button>
-                                        ))}
-                                        <button onClick={handlePlayerRecover} disabled={isProcessing} className="w-full bg-green-800/50 hover:bg-green-700/70 border border-green-500/30 text-white font-semibold py-2 px-3 rounded-lg transition text-sm disabled:bg-gray-600">Nghỉ Ngơi</button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        {leftPanelTab === 'inventory' && <CompactInventory />}
-                        {leftPanelTab === 'quests' && <QuestTracker />}
-                    </div>
-                </div>
-
-                <div className="flex-shrink-0 space-y-2">
-                     <button onClick={() => setIsMenuModalOpen(true)} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition">Bảng Nhân Vật</button>
-                     <button onClick={() => handleOpenForge()} disabled={isProcessing} className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition disabled:bg-gray-600">Lò Rèn</button>
-                    <div className="grid grid-cols-3 gap-2">
-                         <button onClick={() => handleOpenMenu(GameScreen.SAVE_MANAGEMENT)} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-lg transition text-sm">Lưu/Tải</button>
-                         <button onClick={() => handleOpenMenu(GameScreen.SETTINGS)} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-lg transition text-sm">Thiết Lập</button>
-                         <button onClick={handleBackToMenuWithConfirmation} className="bg-red-800 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition text-sm">Về Menu</button>
-                    </div>
-                </div>
-            </div>
-        )
-    };
-    
-    const RightPanel = () => {
-        return (
-             <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 h-full flex flex-col">
-                {rightPanelContent.type === 'map' && (
-                    <WorldMap pois={worldState.pois} playerPosition={character.position} onPoiClick={handleOpenDialogue} onZoomClick={() => setIsMapModalOpen(true)} />
-                )}
-                {rightPanelContent.type === 'item' && (
-                    <div className="h-full overflow-y-auto">
-                        <ItemCard 
-                            item={rightPanelContent.item} 
-                            onPrimaryAction={() => handleEquipItem(rightPanelContent.item)}
-                            isEquipped={false}
-                        />
-                    </div>
-                )}
-             </div>
-        )
-    }
 
     return (
         <>
-            <div className="min-h-screen bg-gray-900 text-white" style={{ backgroundImage: `url('https://images.wallpaperscraft.com/image/single/road_forest_night_200373_1280x720.jpg')`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
-                <div className="min-h-screen w-full bg-black/70 backdrop-blur-sm p-4">
-                    <div className="h-[calc(100vh-2rem)] grid grid-cols-1 lg:grid-cols-12 gap-4">
-                        <div className="lg:col-span-3 h-full">
-                            <LeftPanel />
+            <div className="min-h-screen bg-gray-900 text-white" style={{ backgroundImage: `url('https://shared.st.dl.eccdnx.com/store_item_assets/steam/apps/3384260/extras/04%E6%88%98%E6%96%97.jpg?t=1734582082')`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+                <div className="min-h-screen w-full bg-black/60 backdrop-blur-sm flex flex-col relative">
+                    
+                    <header className="absolute top-0 left-0 right-0 p-4 z-20 flex justify-between items-start pointer-events-none">
+                        <div className="pointer-events-auto">
+                            <CharacterStatusHeader character={character} />
                         </div>
-                        <div className="lg:col-span-6 h-full bg-gray-900/50 p-4 rounded-xl border border-gray-700">
+                        <div className="pointer-events-auto">
+                            <GameHeader 
+                                onMenu={() => setIsMenuModalOpen(true)}
+                                onMap={() => setIsMapModalOpen(true)}
+                                onForge={() => handleOpenForge()}
+                                onSaveLoad={() => handleOpenMenu(GameScreen.SAVE_MANAGEMENT)}
+                                onSettings={() => handleOpenMenu(GameScreen.SETTINGS)}
+                                onExit={handleBackToMenuWithConfirmation}
+                            />
+                        </div>
+                    </header>
+
+                    <main className="flex-grow p-4 pt-40 overflow-hidden">
+                         <div className="h-full bg-gray-900/50 p-4 rounded-xl border border-gray-700 backdrop-blur-sm">
                              <StoryLog logs={eventLog} isProcessing={isProcessing} />
                         </div>
-                         <div className="lg:col-span-3 h-full">
-                             <RightPanel />
-                        </div>
-                    </div>
+                    </main>
+
+                    <footer className="flex-shrink-0">
+                         <PlayerInputPanel 
+                            contextualActions={contextualActions}
+                            isGeneratingActions={isGeneratingActions}
+                            isProcessing={isProcessing}
+                            onActionSubmit={handleActionSubmit}
+                            onPlayerRecover={handlePlayerRecoverWithProcessing}
+                            onMove={handleMove}
+                         />
+                    </footer>
                 </div>
             </div>
-
+            
             {isMenuModalOpen && <MenuModal onClose={() => setIsMenuModalOpen(false)} />}
             
             {isMapModalOpen && (
                 <WorldMapModal 
-                    pois={worldState.pois} 
+                    pois={worldState.pois}
                     playerPosition={character.position}
                     onClose={() => setIsMapModalOpen(false)}
                     onPoiClick={handlePoiClickInModal}
