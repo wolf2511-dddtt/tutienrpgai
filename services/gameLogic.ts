@@ -1,4 +1,4 @@
-import { Character, PlayerClass, Stat, Realm, BaseStats, DerivedStats, Item, ItemType, Rarity, UpgradeMaterial, UpgradeConsumable, AttackResult, AffixId, SetBonus, Skill, SkillType, ImageLibraryItem, WorldState, TerrainType, Difficulty, ActiveEffect, SkillEffect, TargetType, SkillEffectType, Combatant, Pet, PetStatus, CultivationTechnique, Faction, MonsterRank, LinhCan, LinhCanQuality, Element, MonsterTemplate, Servant, ServantTask, CultivationTechniqueType } from '../types';
+import { Character, PlayerClass, Stat, Realm, BaseStats, DerivedStats, Item, ItemType, Rarity, UpgradeMaterial, UpgradeConsumable, AttackResult, AffixId, SetBonus, Skill, SkillType, ImageLibraryItem, WorldState, TerrainType, Difficulty, ActiveEffect, SkillEffect, TargetType, SkillEffectType, Combatant, Pet, PetStatus, CultivationTechnique, Faction, MonsterRank, LinhCan, LinhCanQuality, Element, MonsterTemplate, Servant, ServantTask } from '../types';
 import { REALMS, CLASS_STATS, RARITY_DATA, AVAILABLE_ITEM_TYPES, AVAILABLE_BONUS_STATS, ITEM_SETS, SKILLS, MAP_WIDTH, MAP_HEIGHT, TERRAIN_DATA, DIFFICULTY_MODIFIERS, MONSTER_RANK_MODIFIERS, LINH_CAN_QUALITIES, CUSTOM_CLASS_POINTS_PER_LEVEL } from '../constants';
 import { generateItemDetails, generateMonsterName, generateSkill, generateBonusStatsForItem, generateCultivationTechniqueDetails, generateSkillForSkillBook } from './geminiService';
 import { BOSS_DEFINITIONS } from '../data/bossData';
@@ -163,19 +163,12 @@ export const calculateDerivedStats = (level: number, baseStats: BaseStats, equip
         });
     });
     
-    // Initialize new accumulators for specific stats
-    let evasionFromThanPhap = 0;
-    let accuracyFromCongKich = 0;
-    let penetrationFromSkillsAndTechniques = 0;
-
     // Process passive skills
     skills.forEach(skill => {
         if (skill.type === SkillType.PASSIVE) {
             skill.effects.forEach(effect => {
                 if (effect.type === SkillEffectType.BUFF && effect.stat && effect.value) {
-                     if (effect.stat === Stat.PENETRATION) {
-                        penetrationFromSkillsAndTechniques += effect.value;
-                     } else if (effect.isPercent) {
+                     if (effect.isPercent) {
                         percentDerivedStats[effect.stat] = (percentDerivedStats[effect.stat] || 0) + effect.value;
                     } else {
                         if (effect.stat in totalBaseStats) {
@@ -189,19 +182,13 @@ export const calculateDerivedStats = (level: number, baseStats: BaseStats, equip
         }
     });
 
-    // Process ALL learned cultivation techniques for passive bonuses
-    learnedCultivationTechniques.forEach(tech => {
-        tech.bonuses.forEach(bonus => {
-            const { stat, value, isPercent } = bonus;
-            
-            if (stat === Stat.EVASION && tech.type === CultivationTechniqueType.THAN_PHAP) {
-                evasionFromThanPhap += value;
-            } else if (stat === Stat.ACCURACY && tech.type === CultivationTechniqueType.CONG_KICH) {
-                accuracyFromCongKich += value;
-            } else if (stat === Stat.PENETRATION) {
-                penetrationFromSkillsAndTechniques += value;
-            } else {
-                 if (isPercent) {
+    // Process active cultivation technique
+    if (activeCultivationTechniqueId) {
+        const activeTechnique = learnedCultivationTechniques.find(t => t.id === activeCultivationTechniqueId);
+        if (activeTechnique) {
+            activeTechnique.bonuses.forEach(bonus => {
+                const { stat, value, isPercent } = bonus;
+                if (isPercent) {
                     percentDerivedStats[stat] = (percentDerivedStats[stat] || 0) + value;
                 } else {
                     if (stat in totalBaseStats) {
@@ -210,9 +197,10 @@ export const calculateDerivedStats = (level: number, baseStats: BaseStats, equip
                         bonusDerivedStats[stat] = (bonusDerivedStats[stat] || 0) + value;
                     }
                 }
-            }
-        });
-    });
+            });
+        }
+    }
+
 
     let derived: DerivedStats = {
         [Stat.HP]: totalBaseStats.CON * 15 + (level * 5),
@@ -221,10 +209,10 @@ export const calculateDerivedStats = (level: number, baseStats: BaseStats, equip
         [Stat.MATK]: totalBaseStats.INT * 2.5 + (level * 0.5),
         [Stat.DEF]: totalBaseStats.CON * 1.5 + (level * 0.5),
         [Stat.SPEED]: totalBaseStats.AGI * 1.1 + (level * 0.1),
-        [Stat.PENETRATION]: 0,
-        [Stat.EVASION]: 0,
+        [Stat.PENETRATION]: totalBaseStats.STR * 0.5 + (level * 0.1),
+        [Stat.EVASION]: (totalBaseStats.AGI + totalBaseStats.DEX) * 0.6 + (level * 0.1),
         [Stat.CRIT_RATE]: (totalBaseStats.DEX * 0.6 + totalBaseStats.AGI * 0.4) + (level * 0.1),
-        [Stat.ACCURACY]: 0,
+        [Stat.ACCURACY]: totalBaseStats.DEX * 1.5 + (level * 0.3),
         [Stat.LIFESTEAL]: 0,
         [Stat.ATK_SPEED]: 0,
         [Stat.FIRE_DMG_BONUS]: 0,
@@ -239,34 +227,12 @@ export const calculateDerivedStats = (level: number, baseStats: BaseStats, equip
         [Stat.EARTH_RES]: 0,
     };
 
-    // Apply flat bonuses from equipment etc. to the base derived values before capping
-    const baseEvasionFromStats = (totalBaseStats.AGI + totalBaseStats.DEX) * 0.6 + (level * 0.1) + (bonusDerivedStats[Stat.EVASION] || 0);
-    const baseAccuracyFromStats = totalBaseStats.DEX * 1.5 + (level * 0.3) + (bonusDerivedStats[Stat.ACCURACY] || 0);
-    // Penetration is now a percentage
-    const basePenetrationFromStats = (totalBaseStats.STR * 0.1) + (level * 0.05) + (bonusDerivedStats[Stat.PENETRATION] || 0);
-    
-    // Apply new rules and caps
-    const cappedBaseEvasion = Math.min(20, baseEvasionFromStats);
-    const cappedSkillEvasion = Math.min(60, evasionFromThanPhap);
-    derived[Stat.EVASION] = Math.min(80, cappedBaseEvasion + cappedSkillEvasion);
-
-    const cappedBaseAccuracy = Math.min(10, baseAccuracyFromStats);
-    const cappedSkillAccuracy = Math.min(85, accuracyFromCongKich);
-    derived[Stat.ACCURACY] = Math.min(95, cappedBaseAccuracy + cappedSkillAccuracy);
-
-    const cappedBasePenetration = Math.min(10, basePenetrationFromStats);
-    const cappedSkillPenetration = Math.min(70, penetrationFromSkillsAndTechniques);
-    derived[Stat.PENETRATION] = Math.min(80, cappedBasePenetration + cappedSkillPenetration);
-
-
-    // Apply remaining flat bonuses
     for (const [stat, value] of Object.entries(bonusDerivedStats)) {
-        if (stat in derived && ![Stat.EVASION, Stat.ACCURACY, Stat.PENETRATION].includes(stat as Stat)) {
+        if (stat in derived) {
             (derived as any)[stat] += value;
         }
     }
     
-    // Apply percentage bonuses to all stats
     for (const [stat, value] of Object.entries(percentDerivedStats)) {
         if (stat in derived) {
             (derived as any)[stat] *= (1 + value / 100);
@@ -291,7 +257,7 @@ export const calculateDerivedStats = (level: number, baseStats: BaseStats, equip
     derived[Stat.CRIT_RATE] = parseFloat(derived[Stat.CRIT_RATE].toFixed(2));
     derived[Stat.ACCURACY] = parseFloat(derived[Stat.ACCURACY].toFixed(2));
     derived[Stat.LIFESTEAL] = parseFloat(derived[Stat.LIFESTEAL].toFixed(2));
-    derived[Stat.ATK_SPEED] = 0; // Removed
+    derived[Stat.ATK_SPEED] = parseFloat(derived[Stat.ATK_SPEED].toFixed(2));
     
     return derived;
 };
@@ -758,10 +724,7 @@ export const fullyUpdateCharacter = async (character: Character): Promise<Charac
         pets: character.pets || [],
         activePetId: character.activePetId || null,
         forgingProficiency: character.forgingProficiency || { level: 1, exp: 0, expToNextLevel: 100 },
-        learnedCultivationTechniques: (character.learnedCultivationTechniques || []).map(tech => ({
-            ...tech,
-            type: tech.type || CultivationTechniqueType.TAM_PHAP, // Ensure every technique has a type for filtering
-        })),
+        learnedCultivationTechniques: character.learnedCultivationTechniques || [],
         activeCultivationTechniqueId: character.activeCultivationTechniqueId || null,
         reputation: character.reputation || {},
         sectId: character.sectId || null,
@@ -866,9 +829,9 @@ export const generateItem = async (itemLevel: number, character: Character, forc
             baseStats[Stat.HP] = itemLevel * 10;
             break;
         case ItemType.RING:
-            const ringStats = [Stat.CRIT_RATE, Stat.STR, Stat.AGI, Stat.INT, Stat.DEX];
+            const ringStats = [Stat.CRIT_RATE, Stat.STR, Stat.AGI, Stat.INT, Stat.DEX, Stat.ATK_SPEED];
             const chosenRingStat = ringStats[Math.floor(Math.random() * ringStats.length)];
-            baseStats[chosenRingStat] = (chosenRingStat === Stat.CRIT_RATE) ? itemLevel * 0.2 + 1 : itemLevel * 1.5 + 3;
+            baseStats[chosenRingStat] = (chosenRingStat === Stat.CRIT_RATE || chosenRingStat === Stat.ATK_SPEED) ? itemLevel * 0.2 + 1 : itemLevel * 1.5 + 3;
             break;
         case ItemType.AMULET:
             const amuletStats = [Stat.HP, Stat.MP, Stat.CON, Stat.PENETRATION];
@@ -930,7 +893,7 @@ export const generateItem = async (itemLevel: number, character: Character, forc
         } catch (e) {
             console.error("AI bonus stat generation failed, using fallback random generation.", e);
             // Fallback logic
-            const availableBonuses = Object.values(Stat).filter(s => ![Stat.HP, Stat.MP, Stat.ATK, Stat.MATK, Stat.DEF, Stat.ATK_SPEED].includes(s));
+            const availableBonuses = Object.values(Stat).filter(s => ![Stat.HP, Stat.MP, Stat.ATK, Stat.MATK, Stat.DEF].includes(s));
             for (let i = 0; i < numBonusStats; i++) {
                 if(availableBonuses.length === 0) break;
                 const randIndex = Math.floor(Math.random() * availableBonuses.length);
@@ -972,8 +935,7 @@ export const performAttack = (attacker: Combatant, defender: Combatant): AttackR
     const baseDamage = attackerClass.includes('Pháp Tu') ? attacker.derivedStats.MATK : attacker.derivedStats[Stat.ATK];
     const critMultiplier = result.crit ? 1.5 : 1;
 
-    const penetrationPercent = attacker.derivedStats[Stat.PENETRATION] / 100;
-    const effectiveDef = Math.max(0, defender.derivedStats[Stat.DEF] * (1 - penetrationPercent));
+    const effectiveDef = Math.max(0, defender.derivedStats[Stat.DEF] - attacker.derivedStats[Stat.PENETRATION]);
     const damageReductionPercent = effectiveDef / (effectiveDef + attacker.level * 20);
     let finalDamage = Math.max(1, (baseDamage * critMultiplier) * (1 - damageReductionPercent));
 
@@ -1067,13 +1029,12 @@ const applyEffectToTarget = (effect: SkillEffect, skill: Skill, Caster: Combatan
             }
 
             const isCrit = Math.random() * 100 < Caster.derivedStats[Stat.CRIT_RATE];
-            const baseDamage = casterClass.includes('Pháp Tu') ? Caster.derivedStats.MATK : Caster.derivedStats.ATK;
+            const baseDamage = casterClass.includes('Pháp Tu') ? Caster.derivedStats.MATK : Caster.derivedStats[Stat.ATK];
             const critMultiplier = isCrit ? 1.5 : 1;
             const powerMultiplier = effect.powerMultiplier || 1.0;
-            
-            const skillPenetrationBonus = skill.id === 'kiemtu_active_1' ? 25 : 0; // Đâm Lén ignores 25% armor
-            const totalPenetrationPercent = Math.min(100, Caster.derivedStats[Stat.PENETRATION] + skillPenetrationBonus);
-            const effectiveDef = Math.max(0, Target.derivedStats.DEF * (1 - totalPenetrationPercent / 100));
+            const penetrationMultiplier = skill.id === 'kiemtu_active_1' ? 0.75 : 1.0; // Specific logic for Đâm Lén
+
+            const effectiveDef = Math.max(0, (Target.derivedStats.DEF * penetrationMultiplier) - Caster.derivedStats[Stat.PENETRATION]);
             const damageReductionPercent = effectiveDef / (effectiveDef + Caster.level * 20);
             const finalDamage = Math.max(1, (baseDamage * powerMultiplier * critMultiplier) * (1 - damageReductionPercent));
             

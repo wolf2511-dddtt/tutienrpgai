@@ -1,4 +1,32 @@
-import { Realm, PlayerClass, Rarity, Stat, ItemType, UpgradeMaterial, UpgradeConsumable, Item, AffixId, Affix, ItemSet, Skill, SkillType, TargetType, TerrainType, Poi, BaseStats, AppSettings, Difficulty, SkillEffectType, MonsterRank, Element, LinhCanQuality, LinhCan, FontSize, ColorTheme } from './types';
+// Thông tin phiên bản và changelog
+export const APP_VERSION = '1.0.2';
+export const CHANGELOG = [
+    {
+        version: '1.0.2',
+        date: '2025-08-18',
+        changes: [
+            'Thêm nút hiển thị thông tin cập nhật.',
+            'Cải thiện giao diện chính.',
+            'Sửa một số lỗi nhỏ.',
+        ],
+    },
+    {
+        version: '1.0.1',
+        date: '2025-08-17',
+        changes: [
+            'Sửa một số lỗi nhỏ.',
+        ],
+    },
+    {
+        version: '1.0.0',
+        date: '2025-08-16',
+        changes: [
+            'Phát hành',
+        ],
+    },
+    // Thêm các phiên bản trước ở đây nếu cần
+];
+import { Realm, PlayerClass, Rarity, Stat, ItemType, UpgradeMaterial, UpgradeConsumable, Item, AffixId, Affix, ItemSet, Skill, SkillType, TargetType, TerrainType, Poi, BaseStats, AppSettings, Difficulty, SkillEffectType, MonsterRank, Element, LinhCanQuality, LinhCan } from './types';
 
 export const MAP_WIDTH = 20;
 export const MAP_HEIGHT = 20;
@@ -343,8 +371,4 @@ export const DEFAULT_SETTINGS: AppSettings = {
         [Rarity.MYTHIC]: false,
     },
     useAdvancedCombatAI: false,
-    fontSize: FontSize.MEDIUM,
-    colorTheme: ColorTheme.DEFAULT,
-    storyLogFontSize: FontSize.MEDIUM,
-    reduceMotion: false,
 };
