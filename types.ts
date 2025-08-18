@@ -1,4 +1,3 @@
-
 import type { Dispatch, SetStateAction } from 'react';
 
 export enum GameScreen {
@@ -479,16 +478,29 @@ export interface ImageLibraryItem {
     isMonster: boolean;
 }
 
+export interface DisplayStyle {
+    font: string;
+    size: string;
+    textColor: string;
+    bgColor?: string;
+}
+
+export interface DisplaySettings {
+    aiNarrative: DisplayStyle;
+    playerDialogue: DisplayStyle;
+    npcDialogue: DisplayStyle;
+    characterName: DisplayStyle;
+}
+
 export interface AppSettings {
     gameSpeed: number;
     difficulty: Difficulty;
     eventFrequency: number;
     autoDismantleRarities: { [key in Rarity]: boolean };
     useAdvancedCombatAI: boolean;
-    fontSize: number; // e.g. 16 for 16px
-    fontFamily: string; // e.g. 'Inter'
     colorTheme: ColorTheme;
     reduceMotion: boolean;
+    displaySettings: DisplaySettings;
 }
 
 export interface Faction {

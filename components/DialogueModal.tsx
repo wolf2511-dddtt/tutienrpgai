@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { DialogueTurn } from '../types';
@@ -8,6 +7,7 @@ const AILoadingSpinner: React.FC = () => (
 );
 
 const DialogueLine: React.FC<{ turn: DialogueTurn, npcImageUrl?: string }> = ({ turn, npcImageUrl }) => {
+    const { appSettings } = useGame();
     const isPlayer = turn.speaker === 'player';
     const isSystemMessage = turn.text.startsWith('[');
     
@@ -21,6 +21,17 @@ const DialogueLine: React.FC<{ turn: DialogueTurn, npcImageUrl?: string }> = ({ 
         )
     }
 
+    const dialogueStyle = isPlayer 
+        ? appSettings.displaySettings.playerDialogue
+        : appSettings.displaySettings.npcDialogue;
+
+    const bubbleStyle: React.CSSProperties = {
+        fontFamily: `'${dialogueStyle.font}', sans-serif`,
+        fontSize: dialogueStyle.size,
+        color: dialogueStyle.textColor,
+        backgroundColor: dialogueStyle.bgColor,
+    };
+
     return (
         <div className={`flex items-end gap-2 sm:gap-3 my-4 ${isPlayer ? 'flex-row-reverse' : ''}`}>
             {!isPlayer && (
@@ -30,8 +41,11 @@ const DialogueLine: React.FC<{ turn: DialogueTurn, npcImageUrl?: string }> = ({ 
                     className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-purple-400 flex-shrink-0"
                 />
             )}
-            <div className={`w-10/12 sm:w-auto sm:max-w-xl p-3 sm:p-4 rounded-2xl ${isPlayer ? 'bg-blue-700 rounded-br-none' : 'bg-gray-700 rounded-bl-none'}`}>
-                <p className="text-white">{turn.text}</p>
+            <div 
+                style={bubbleStyle}
+                className={`w-10/12 sm:w-auto sm:max-w-xl p-3 sm:p-4 rounded-2xl ${isPlayer ? 'rounded-br-none' : 'rounded-bl-none'}`}
+            >
+                <p>{turn.text}</p>
             </div>
         </div>
     );

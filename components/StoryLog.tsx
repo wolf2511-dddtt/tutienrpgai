@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { ExplorationEventLog, LogType } from '../types';
 import { useGame } from '../contexts/GameContext';
@@ -19,7 +18,14 @@ const LogIcons: Record<LogType, string> = {
 };
 
 const StoryLog: React.FC<StoryLogProps> = ({ logs, isProcessing }) => {
+    const { appSettings } = useGame();
     const logContainerRef = useRef<HTMLDivElement>(null);
+    
+    const storyLogStyle: React.CSSProperties = {
+        fontFamily: `'${appSettings.displaySettings.aiNarrative.font}', sans-serif`,
+        fontSize: appSettings.displaySettings.aiNarrative.size,
+        color: appSettings.displaySettings.aiNarrative.textColor,
+    };
 
     useEffect(() => {
         if (logContainerRef.current) {
@@ -32,8 +38,8 @@ const StoryLog: React.FC<StoryLogProps> = ({ logs, isProcessing }) => {
             <div ref={logContainerRef} className="flex-grow overflow-y-auto pr-2 space-y-3 flex flex-col-reverse text-sm">
                 {/* Reversed order rendering */}
                 {logs.map((log) => (
-                    <div key={log.id} className="border-t border-gray-700/50 pt-2 mt-2 first:border-t-0 first:pt-0 first:mt-0 text-gray-200 italic animate-fade-in flex items-start gap-2">
-                        <span className="text-lg mt-0.5">{LogIcons[log.type] || '🌀'}</span>
+                    <div key={log.id} className="border-t border-gray-700/50 pt-2 mt-2 first:border-t-0 first:pt-0 first:mt-0 italic animate-fade-in flex items-start gap-2" style={storyLogStyle}>
+                        <span className="text-lg mt-0.5 not-italic">{LogIcons[log.type] || '🌀'}</span>
                         <div className="flex-1">
                             <p>{log.text}</p>
                             {log.sources && log.sources.length > 0 && (

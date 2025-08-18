@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Character, Pet } from '../types';
 import { useGame } from '../contexts/GameContext';
@@ -29,14 +28,21 @@ const ExpBar: React.FC<{ current: number, max: number }> = ({ current, max }) =>
 
 
 const CharacterStatusHeader: React.FC<{ character: Character }> = ({ character }) => {
+    const { appSettings } = useGame();
     const activePet = character.pets.find(p => p.id === character.activePetId);
+    
+    const characterNameStyle: React.CSSProperties = {
+        fontFamily: `'${appSettings.displaySettings.characterName.font}', sans-serif`,
+        fontSize: appSettings.displaySettings.characterName.size,
+        color: appSettings.displaySettings.characterName.textColor,
+    };
 
     return (
         <div className="bg-gray-800/80 p-3 rounded-xl border border-gray-700">
             <div className="flex items-center gap-3">
                  {character.imageUrl && <img src={character.imageUrl} alt={character.name} className="w-12 h-12 rounded-full object-cover border-2 border-purple-400" />}
                 <div className="flex-grow">
-                    <h2 className="text-lg font-bold text-purple-400 truncate">{character.name}</h2>
+                    <h2 className="font-bold truncate" style={characterNameStyle}>{character.name}</h2>
                     <p className="text-xs text-gray-400">Lv. {character.level} {character.playerClass}</p>
                 </div>
             </div>

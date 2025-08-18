@@ -1,4 +1,4 @@
-import { Realm, PlayerClass, Rarity, Stat, ItemType, UpgradeMaterial, UpgradeConsumable, Item, AffixId, Affix, ItemSet, Skill, SkillType, TargetType, TerrainType, Poi, BaseStats, AppSettings, Difficulty, SkillEffectType, MonsterRank, Element, LinhCanQuality, LinhCan, ColorTheme } from './types';
+import { Realm, PlayerClass, Rarity, Stat, ItemType, UpgradeMaterial, UpgradeConsumable, Item, AffixId, Affix, ItemSet, Skill, SkillType, TargetType, TerrainType, Poi, BaseStats, AppSettings, Difficulty, SkillEffectType, MonsterRank, Element, LinhCanQuality, LinhCan, ColorTheme, DisplaySettings } from './types';
 
 export const MAP_WIDTH = 20;
 export const MAP_HEIGHT = 20;
@@ -331,6 +331,13 @@ export const LOCAL_STORAGE_KEY_API_KEYS = 'rpg_ai_sim_api_keys'; // New key for 
 export const LOCAL_STORAGE_KEY_SETTINGS = 'rpg_ai_sim_settings';
 export const LOCAL_STORAGE_KEY_SAVE_GAME = 'rpg_ai_sim_save_';
 
+export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+    aiNarrative: { font: 'Inter', size: '16px', textColor: '#d1d5db', bgColor: '#1f2937' },
+    playerDialogue: { font: 'Inter', size: '16px', textColor: '#FFFFFF', bgColor: '#1d4ed8' },
+    npcDialogue: { font: 'Inter', size: '16px', textColor: '#FFFFFF', bgColor: '#4b5563' },
+    characterName: { font: 'Be Vietnam Pro', size: '18px', textColor: '#c084fc' },
+};
+
 export const DEFAULT_SETTINGS: AppSettings = {
     gameSpeed: 1,
     difficulty: Difficulty.NORMAL,
@@ -344,8 +351,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
         [Rarity.MYTHIC]: false,
     },
     useAdvancedCombatAI: false,
-    fontSize: 18,
-    fontFamily: 'Inter',
     colorTheme: ColorTheme.DEFAULT,
     reduceMotion: false,
+    displaySettings: DEFAULT_DISPLAY_SETTINGS,
 };

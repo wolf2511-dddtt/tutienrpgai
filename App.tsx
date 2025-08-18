@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { GameScreen, ColorTheme } from './types';
 import MainMenu from './components/MainMenu';
@@ -32,10 +31,6 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const root = document.documentElement;
     
-    // Font size & family
-    root.style.fontSize = `${appSettings.fontSize}px`;
-    root.style.setProperty('--font-family', `'${appSettings.fontFamily}', sans-serif`);
-
     // Color theme
     Object.values(ColorTheme).forEach(theme => root.classList.remove(`theme-${theme}`));
     root.classList.add(`theme-${appSettings.colorTheme}`);
@@ -46,7 +41,7 @@ const AppContent: React.FC = () => {
     } else {
       root.classList.remove('reduce-motion');
     }
-  }, [appSettings.fontSize, appSettings.fontFamily, appSettings.colorTheme, appSettings.reduceMotion]);
+  }, [appSettings.colorTheme, appSettings.reduceMotion]);
 
 
   const renderScreen = () => {
