@@ -1,6 +1,7 @@
 
 
 
+
 import React from 'react';
 import { Pet, Stat, Skill, SkillType } from '../types';
 
@@ -30,7 +31,7 @@ const PetSheet: React.FC<{ pet: Pet; onRename: () => void; }> = ({ pet, onRename
     };
     
     return (
-        <div className="bg-gray-900/50 text-white p-4 rounded-2xl shadow-lg border border-gray-700 w-full max-w-4xl mx-auto space-y-4">
+        <div className="bg-gray-900/50 text-white p-4 rounded-2xl shadow-lg border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] w-full max-w-4xl mx-auto space-y-4">
             <div className="flex flex-col sm:flex-row gap-4 items-center">
                 {imageUrl && <img src={imageUrl} alt={name} className="w-24 h-24 rounded-full border-4 border-purple-500 object-cover" />}
                 <div className="text-center sm:text-left flex-grow">

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Character, Stat, Skill, SkillType, DerivedStats, BaseStats, SkillEffectType, TargetType, Element } from '../types';
 import { getActiveSetBonuses, calculateBonusStatsFromEquipment, calculateBaseStatBonusesFromEquipment } from '../services/gameLogic';
@@ -131,7 +132,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character }) => {
     };
 
 return (
-    <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-2xl border border-gray-700 w-full max-w-4xl mx-auto space-y-6">
+    <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-2xl border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] w-full max-w-4xl mx-auto space-y-6">
         <div className="text-center">
             <h2 className="text-3xl font-bold text-purple-400">{name}</h2>
             <p className="text-lg text-gray-400">{playerClass} - Cấp {level}</p>
@@ -173,7 +174,7 @@ return (
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-                <h3 className="text-xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Chỉ số Gốc</h3>
+                <h3 className="text-xl font-semibold mb-3 text-gray-200 border-b border-[var(--color-border-base)] pb-2">Chỉ số Gốc</h3>
                 <div className="space-y-2">
                     <StatItem label="Sức Mạnh (STR)" value={baseStats.STR} bonus={equipmentBaseStatBonuses.STR || 0} icon={statIcons.STR} canAllocate={canAllocate} onAllocate={() => handleAllocateStatPoint(Stat.STR)} />
                     <StatItem label="Nhanh Nhẹn (AGI)" value={baseStats.AGI} bonus={equipmentBaseStatBonuses.AGI || 0} icon={statIcons.AGI} canAllocate={canAllocate} onAllocate={() => handleAllocateStatPoint(Stat.AGI)} />
@@ -184,7 +185,7 @@ return (
                 </div>
             </div>
             <div>
-                <h3 className="text-xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Thuộc tính Mở rộng</h3>
+                <h3 className="text-xl font-semibold mb-3 text-gray-200 border-b border-[var(--color-border-base)] pb-2">Thuộc tính Mở rộng</h3>
                 <div className="space-y-1 text-sm">
                     <DerivedStatRow label="HP" value={derivedStats.HP.toLocaleString()} change={statChanges[Stat.HP]} labelColor="text-red-400" />
                     <DerivedStatRow label="MP" value={derivedStats.MP.toLocaleString()} change={statChanges[Stat.MP]} labelColor="text-blue-400" />
@@ -203,7 +204,7 @@ return (
 
         {Object.keys(bonusEquipmentStats).length > 0 && (
             <div>
-                <h3 className="text-xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Chỉ Số Cộng Thêm (Trang Bị & Kỹ năng)</h3>
+                <h3 className="text-xl font-semibold mb-3 text-gray-200 border-b border-[var(--color-border-base)] pb-2">Chỉ Số Cộng Thêm (Trang Bị & Kỹ năng)</h3>
                 <div className="space-y-1 text-sm bg-gray-800/50 p-4 rounded-lg columns-1 sm:columns-2 gap-4">
                     {Object.entries(bonusEquipmentStats).map(([stat, value]) => {
                         if (value === 0 || stat in equipmentBaseStatBonuses) return null;
@@ -216,7 +217,7 @@ return (
         
         {skills?.length > 0 && (
              <div>
-                <h3 className="text-xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Kỹ Năng Đã Học</h3>
+                <h3 className="text-xl font-semibold mb-3 text-gray-200 border-b border-[var(--color-border-base)] pb-2">Kỹ Năng Đã Học</h3>
                 <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
                     {skills.map(skill => <SkillItem key={skill.id} skill={skill} />)}
                 </div>
@@ -225,7 +226,7 @@ return (
 
         {activeSetBonuses.length > 0 && (
             <div>
-                <h3 className="text-xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">Kích hoạt Bộ Trang Bị</h3>
+                <h3 className="text-xl font-semibold mb-3 text-gray-200 border-b border-[var(--color-border-base)] pb-2">Kích hoạt Bộ Trang Bị</h3>
                 <div className="space-y-4">
                     {activeSetBonuses.map(set => (
                         <div key={set.setName} className="bg-gray-800/50 p-3 rounded-md">

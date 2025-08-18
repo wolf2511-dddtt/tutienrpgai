@@ -57,7 +57,7 @@ const FactionListScreen: React.FC = () => {
                         }
 
                         return (
-                             <div key={faction.id} className="bg-gray-800/60 p-4 rounded-lg border border-purple-500/30 shadow-lg flex flex-col justify-between">
+                             <div key={faction.id} className="bg-gray-800/60 p-4 rounded-lg border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] shadow-lg flex flex-col justify-between">
                                 <div>
                                     <div className="flex justify-between items-start mb-2">
                                         <h3 className="text-xl font-bold text-purple-300">{faction.name}</h3>

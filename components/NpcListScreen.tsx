@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useGame } from '../contexts/GameContext';
 import { MetNpcInfo } from '../types';
@@ -17,7 +18,7 @@ const NpcCard: React.FC<{ npc: MetNpcInfo }> = ({ npc }) => {
     const affinityPercentage = (normalizedAffinity + 100) / 200 * 100;
 
     return (
-        <div className="bg-gray-800/60 p-4 rounded-lg border border-purple-500/30 shadow-lg flex flex-col sm:flex-row items-center gap-4 transition-all duration-300 hover:bg-gray-800 hover:border-purple-400 hover:shadow-purple-500/20">
+        <div className="bg-gray-800/60 p-4 rounded-lg border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] shadow-lg flex flex-col sm:flex-row items-center gap-4 transition-all duration-300 hover:bg-gray-800 hover:border-purple-400 hover:shadow-purple-500/20">
             <img 
                 src={npc.imageUrl || 'https://via.placeholder.com/150'} 
                 alt={npc.name} 

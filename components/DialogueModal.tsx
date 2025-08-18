@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { DialogueTurn } from '../types';
@@ -118,7 +119,7 @@ const DialogueModal: React.FC = () => {
 
     return (
         <div className="fixed inset-0 bg-[var(--color-bg-main)] flex flex-col z-50 animate-fade-in">
-            <header className="bg-[var(--color-bg-secondary)]/80 backdrop-blur-sm p-4 flex items-center justify-between border-b border-[var(--color-border-base)] shadow-lg">
+            <header className="bg-[var(--color-bg-secondary)]/80 backdrop-blur-sm p-4 flex items-center justify-between border-b border-[var(--color-primary)] shadow-lg shadow-[var(--color-primary-dark)]/20">
                 <div className="flex items-center gap-4">
                     <img src={dialogueState.npcImageUrl || 'https://via.placeholder.com/150'} alt={dialogueState.npcName} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-purple-400" />
                     <div>
@@ -151,7 +152,7 @@ const DialogueModal: React.FC = () => {
                 </div>
             </main>
 
-            <footer className="bg-[var(--color-bg-secondary)]/80 backdrop-blur-sm p-2 sm:p-4 border-t border-[var(--color-border-base)]">
+            <footer className="bg-[var(--color-bg-secondary)]/80 backdrop-blur-sm p-2 sm:p-4 border-t border-[var(--color-primary)]">
                 {dialogueState.options && dialogueState.options.length > 0 && !isSending && (
                     <div className="max-w-4xl mx-auto flex flex-wrap justify-center gap-2 mb-3">
                         {dialogueState.options.map((option, index) => (

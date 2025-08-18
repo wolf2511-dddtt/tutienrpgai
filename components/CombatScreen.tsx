@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Character, Item, UpgradeMaterial, AttackResult, Skill, SkillType, ActiveEffect, TargetType, Pet, Combatant, UpgradeConsumable, Rarity, CombatLogEntry, MonsterRank, Element, SkillEffectType } from '../types';
 import { performAttack, useSkill, generateItem } from '../services/gameLogic';
@@ -17,7 +18,7 @@ const CombatantDisplay: React.FC<{ combatant: Combatant, isPlayerSide: boolean, 
 
 
     return (
-        <div className={`flex flex-col items-center p-2 sm:p-4 rounded-xl transition-all duration-300 bg-[var(--color-backdrop-bg)] backdrop-blur-md border ${isActiveTurn ? 'border-[var(--color-primary-light)] animate-pulse-border' : 'border-[var(--color-border-base)]'}`}>
+        <div className={`flex flex-col items-center p-2 sm:p-4 rounded-xl transition-all duration-300 bg-[var(--color-backdrop-bg)] backdrop-blur-md border shadow-[0_0_8px_var(--color-primary-dark)] ${isActiveTurn ? 'border-[var(--color-primary-light)] animate-pulse-border' : 'border-[var(--color-primary)]'}`}>
             {combatant.imageUrl && (
                  <div className={`w-24 h-24 sm:w-32 sm:h-32 mb-4 rounded-lg overflow-hidden border-2 ${isPlayerSide ? 'border-cyan-500/50' : 'border-red-500/50'} shadow-lg`}>
                     <img src={combatant.imageUrl} alt={combatantName} className="w-full h-full object-cover" />
@@ -553,7 +554,7 @@ useEffect(() => {
             {/* Bottom Row: Log and Actions */}
             <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4 overflow-hidden h-48 sm:h-auto">
                 {/* Combat Log */}
-                <div className="md:col-span-2 bg-[var(--color-backdrop-bg)] backdrop-blur-md border border-[var(--color-border-base)] p-2 sm:p-4 rounded-lg flex flex-col h-full overflow-hidden">
+                <div className="md:col-span-2 bg-[var(--color-backdrop-bg)] backdrop-blur-md border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] p-2 sm:p-4 rounded-lg flex flex-col h-full overflow-hidden">
                     <h3 className="text-lg font-bold text-gray-300 mb-2 flex-shrink-0">Nhật Ký Chiến Đấu</h3>
                     <div className="flex-grow overflow-y-auto space-y-2 flex flex-col-reverse pr-2">
                         {combatLog.map(log => (
@@ -563,7 +564,7 @@ useEffect(() => {
                 </div>
 
                 {/* Actions */}
-                <div className="relative bg-[var(--color-backdrop-bg)] backdrop-blur-md border border-[var(--color-border-base)] p-2 sm:p-4 rounded-lg flex flex-col justify-center">
+                <div className="relative bg-[var(--color-backdrop-bg)] backdrop-blur-md border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] p-2 sm:p-4 rounded-lg flex flex-col justify-center">
                      {isPlayerTurn && !isCombatOver && (
                         <div className="space-y-2 animate-fade-in">
                             <h3 className="text-lg font-bold text-purple-300 text-center mb-2">Đến lượt bạn!</h3>

@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Character, GameScreen, ExplorationEventLog, Poi, LogType } from '../types';
 import { processPlayerAction } from '../services/geminiService';
@@ -16,10 +17,12 @@ import NpcListScreen from './NpcListScreen';
 import StoryLog from './StoryLog';
 import CompanionScreen from './CompanionScreen';
 
+type MainView = 'overview' | 'inventory' | 'resources' | 'quests' | 'pets' | 'companions' | 'cultivation' | 'factions' | 'npcs' | 'bestiary';
+
 // --- SUB-COMPONENTS for the new layout ---
 
 const StatBox: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
-    <div className="bg-[var(--color-bg-tertiary)] border border-[var(--color-border-base)] rounded-md px-3 py-2 flex justify-between items-center text-sm">
+    <div className="bg-[var(--color-bg-tertiary)] border border-[var(--color-primary)] rounded-md px-3 py-1 flex justify-between items-center text-sm">
       <span className="text-[var(--color-text-medium)]">{label}</span>
       <span className="font-semibold text-[var(--color-text-light)]">{value}</span>
     </div>
@@ -30,7 +33,7 @@ const InGameCharacterPanel: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'info' | 'skills'>('info');
     if (!character) return null;
 
-    const { baseStats, derivedStats, skills } = character;
+    const { baseStats, derivedStats, skills, level, realm } = character;
 
     const TabButton: React.FC<{ label: string, view: 'info' | 'skills', currentView: string }> = ({ label, view, currentView }) => (
         <button
@@ -52,23 +55,22 @@ const InGameCharacterPanel: React.FC = () => {
                     <div className="space-y-3 animate-fade-in">
                         <h3 className="text-xl font-bold text-[var(--color-text-light)] mb-2">Thông Tin Nhân Vật</h3>
                         <StatBox label="Sinh Lực" value={`${Math.round(character.currentHp)} / ${derivedStats.HP}`} />
-                        <StatBox label="Thể Lực" value={baseStats.STR || 0} />
+                        <StatBox label="Thể Lực" value={baseStats.CON || 0} />
                         <StatBox label="Lý Trí" value={baseStats.INT || 0} />
-                        <StatBox label="Thân Trọng" value={baseStats.AGI || 0} />
-                        <StatBox label="Cứng Cáp" value={baseStats.CON || 0} />
-                        <StatBox label="Tinh Thần" value={baseStats.SPI || 0} />
-                        <StatBox label="Khéo Léo" value={baseStats.DEX || 0} />
+                        <StatBox label="Dục Vọng" value={'Bình thường'} />
+                        <StatBox label="Ký ức kinh hoàng" value={`Im sâu (${level} lượt)`} />
+                        <StatBox label="Thân Trọng" value={'Tột độ'} />
                     </div>
                 )}
                 {activeTab === 'skills' && (
                     <div className="space-y-2 animate-fade-in">
                         <h3 className="text-xl font-bold text-[var(--color-text-light)] mb-2">Kỹ Năng</h3>
-                        {skills.slice(0, 10).map(skill => (
+                        {skills.length > 0 ? skills.slice(0, 10).map(skill => (
                             <div key={skill.id} className="bg-[var(--color-bg-tertiary)] p-2 rounded-md">
                                 <p className="font-semibold text-sm text-[var(--color-primary-light)]">{skill.name}</p>
                                 <p className="text-xs text-[var(--color-text-dark)] italic truncate">{skill.description}</p>
                             </div>
-                        ))}
+                        )) : <p className="text-[var(--color-text-dark)] italic">Chưa học kỹ năng nào.</p>}
                     </div>
                 )}
             </div>
@@ -90,7 +92,7 @@ const NpcProfilePanel: React.FC = () => {
                     <div className="space-y-3">
                         {character.metNpcs.map(npc => (
                              <div key={npc.name} className="bg-[var(--color-bg-tertiary)] p-3 rounded-lg flex items-center gap-3">
-                                <img src={npc.imageUrl || 'https://via.placeholder.com/40'} alt={npc.name} className="w-12 h-12 rounded-full object-cover border-2 border-[var(--color-border-base)]"/>
+                                <img src={npc.imageUrl || 'https://via.placeholder.com/40'} alt={npc.name} className="w-12 h-12 rounded-full object-cover border-2 border-[var(--color-primary)]"/>
                                 <div>
                                     <p className="font-semibold text-[var(--color-text-light)]">{npc.name}</p>
                                     <p className="text-xs text-[var(--color-text-dark)]">{npc.role}</p>
@@ -112,25 +114,18 @@ const WorldHeader: React.FC<{
     onExit: () => void;
 }> = ({ onForge, onMenu, onSaveLoad, onExit }) => {
     return (
-        <header className="flex-shrink-0 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-                <button onClick={onForge} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors">⚡ Sáng Tạo Năng Lực</button>
-                <button onClick={onMenu} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors">📖 Sổ Tay</button>
+        <header className="flex-shrink-0 flex justify-between items-center relative py-2">
+            <div className="flex items-center gap-2 sm:gap-4">
+                <button onClick={onForge} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-hover)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors flex items-center gap-2">⚡ Sáng Tạo Năng Lực</button>
+                <button onClick={onMenu} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-hover)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors flex items-center gap-2">📖 Sổ Tay</button>
             </div>
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 absolute left-1/2 -translate-x-1/2">
-                Tên Truyện
-            </h1>
             <div className="flex items-center gap-2">
-                <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-1.5 text-sm">
+                <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-hover)] rounded-md px-3 py-1.5 text-sm hidden lg:block">
                     <span className="text-[var(--color-text-dark)]">Tokens: </span>
                     <span className="font-semibold text-green-400">17337</span> / 17337
                 </div>
-                 <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-1.5 text-sm">
-                    <span className="text-[var(--color-text-dark)]">Requests: </span>
-                    <span className="font-semibold text-cyan-400">2</span>
-                </div>
-                <button onClick={onSaveLoad} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors">Lưu File</button>
-                <button onClick={onExit} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-red-900/50 transition-colors">Thoát</button>
+                <button onClick={onSaveLoad} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-hover)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors">Lưu File</button>
+                <button onClick={onExit} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-hover)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-red-900/50 transition-colors">Thoát</button>
             </div>
         </header>
     );
@@ -154,8 +149,8 @@ const PlayerInputFooter: React.FC<{
 
     if (!isPanelOpen) {
         return (
-             <footer className="flex-shrink-0 mt-4 flex justify-center">
-                 <button onClick={() => setIsPanelOpen(true)} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-4 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors flex items-center gap-2">
+             <footer className="flex-shrink-0 mt-4 flex justify-center border-t border-[var(--color-border-base)] pt-2">
+                 <button onClick={() => setIsPanelOpen(true)} className="bg-[var(--color-bg-secondary)] border border-[var(--color-primary)] rounded-full px-4 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
                     Hiện Bảng Hành Động
                  </button>
@@ -164,8 +159,8 @@ const PlayerInputFooter: React.FC<{
     }
 
     return (
-        <footer className="flex-shrink-0 mt-4">
-            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-lg p-3">
+        <footer className="flex-shrink-0 mt-4 border-t border-[var(--color-border-base)] pt-2">
+            <div className="bg-transparent">
                  <form onSubmit={handleSubmit} className="flex items-center gap-2 sm:gap-4">
                     <input 
                         type="text" 
@@ -173,7 +168,7 @@ const PlayerInputFooter: React.FC<{
                         onChange={e => setInputText(e.target.value)} 
                         disabled={isProcessing}
                         placeholder="Bạn muốn làm gì tiếp theo?"
-                        className="flex-1 bg-[var(--color-bg-tertiary)] border-2 border-[var(--color-border-base)] rounded-lg py-2 px-4 text-white placeholder-[var(--color-text-dark)] focus:outline-none focus:border-[var(--color-primary)] transition"
+                        className="flex-1 bg-[var(--color-bg-tertiary)] border-2 border-[var(--color-primary)] rounded-lg py-2 px-4 text-white placeholder-[var(--color-text-dark)] focus:outline-none focus:border-[var(--color-primary-light)] transition"
                     />
                     <button type="submit" disabled={isProcessing || !inputText.trim()} className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
                         Gửi
@@ -184,8 +179,6 @@ const PlayerInputFooter: React.FC<{
         </footer>
     );
 };
-
-type MainView = 'overview' | 'inventory' | 'resources' | 'quests' | 'pets' | 'companions' | 'cultivation' | 'factions' | 'npcs' | 'bestiary';
 
 // --- Menu Modal Component ---
 const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -221,9 +214,9 @@ const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] animate-fade-in p-2 sm:p-4">
-            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-2xl shadow-2xl w-full max-w-7xl h-[95vh] sm:h-[90vh] text-white relative flex flex-col overflow-hidden backdrop-blur-md">
+            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] rounded-2xl shadow-2xl w-full max-w-7xl h-[95vh] sm:h-[90vh] text-white relative flex flex-col overflow-hidden backdrop-blur-md">
                 <button onClick={onClose} className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-white text-3xl z-20">&times;</button>
-                <nav className="w-full flex-shrink-0 bg-[var(--color-bg-main)]/50 p-2 border-b border-[var(--color-border-base)]">
+                <nav className="w-full flex-shrink-0 bg-[var(--color-bg-main)]/50 p-2 border-b border-[var(--color-primary)]">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                         <NavButton view="overview" label="Tổng Quan" />
                         <NavButton view="inventory" label="Hành Trang" />
@@ -256,7 +249,6 @@ const WorldScreen: React.FC = () => {
         handleStartCombat, 
         handleOpenForge, 
         handleOpenMenu,
-        handlePlayerMove,
         handleBackToMenu,
         handleOpenDialogue
     } = useGame();
@@ -264,7 +256,6 @@ const WorldScreen: React.FC = () => {
     const [eventLog, setEventLog] = useState<ExplorationEventLog[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     
-    const [isMapModalOpen, setIsMapModalOpen] = useState(false);
     const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
 
     useEffect(() => {
@@ -281,7 +272,7 @@ const WorldScreen: React.FC = () => {
         if (initialLogs.length > 0) {
             setEventLog(prev => [...initialLogs, ...prev].slice(0, 100));
         }
-    }, [oneTimeMessages, setOneTimeMessages]);
+    }, [oneTimeMessages, setOneTimeMessages, eventLog.length]);
 
 
     if (!character) {
@@ -315,15 +306,9 @@ const WorldScreen: React.FC = () => {
         }
     }, [handleBackToMenu]);
 
-    const handlePoiClickInModal = (poiId: number) => {
-        handleOpenDialogue(poiId);
-        setIsMapModalOpen(false);
-    };
-
-
     return (
         <>
-            <div className="min-h-screen bg-[var(--color-bg-main)] text-[var(--color-text-light)] p-4 flex flex-col font-sans">
+            <div className="min-h-screen bg-[var(--color-bg-main)] text-[var(--color-text-light)] p-2 sm:p-4 flex flex-col font-sans max-h-screen">
                 <WorldHeader
                     onForge={handleOpenForge}
                     onMenu={() => setIsMenuModalOpen(true)}
@@ -331,19 +316,19 @@ const WorldScreen: React.FC = () => {
                     onExit={handleBackToMenuWithConfirmation}
                 />
                 
-                <main className="flex-grow grid grid-cols-1 lg:grid-cols-10 gap-4 mt-4 overflow-hidden">
+                <main className="flex-grow grid grid-cols-1 lg:grid-cols-10 gap-4 mt-2 sm:mt-4 overflow-hidden">
                     {/* Left Panel */}
-                    <div className="lg:col-span-3 bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-lg p-4 h-full overflow-hidden">
+                    <div className="lg:col-span-3 bg-[var(--color-bg-secondary)] border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] rounded-lg p-4 h-full overflow-hidden">
                         <InGameCharacterPanel />
                     </div>
 
                     {/* Middle Panel */}
-                    <div className="lg:col-span-4 bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-lg p-4 flex flex-col h-full overflow-hidden">
+                    <div className="lg:col-span-4 bg-[var(--color-bg-secondary)] border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] rounded-lg p-4 flex flex-col h-full overflow-hidden">
                         <StoryLog logs={eventLog} isProcessing={isProcessing} />
                     </div>
 
                     {/* Right Panel */}
-                    <div className="lg:col-span-3 bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-lg p-4 h-full overflow-hidden">
+                    <div className="lg:col-span-3 bg-[var(--color-bg-secondary)] border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] rounded-lg p-4 h-full overflow-hidden">
                         <NpcProfilePanel />
                     </div>
                 </main>
@@ -352,15 +337,6 @@ const WorldScreen: React.FC = () => {
             </div>
             
             {isMenuModalOpen && <MenuModal onClose={() => setIsMenuModalOpen(false)} />}
-            
-            {isMapModalOpen && (
-                <WorldMapModal 
-                    pois={worldState.pois}
-                    playerPosition={character.position}
-                    onClose={() => setIsMapModalOpen(false)}
-                    onPoiClick={handlePoiClickInModal}
-                />
-            )}
         </>
     );
 };

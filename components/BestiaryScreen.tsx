@@ -19,7 +19,7 @@ const BestiaryEntry: React.FC<{ monster: MonsterTemplate }> = ({ monster }) => {
 
     return (
         <div 
-            className="rounded-lg shadow-lg border-2 border-purple-500/30 overflow-hidden relative text-white h-80 bg-cover bg-center"
+            className="rounded-lg shadow-lg border-2 border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] overflow-hidden relative text-white h-80 bg-cover bg-center"
             style={{ backgroundImage: `url(${backgroundUrl})` }}
         >
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 flex flex-col justify-end">
