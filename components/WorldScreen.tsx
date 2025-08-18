@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Character, GameScreen, ExplorationEventLog, Poi, LogType } from '../types';
 import { processPlayerAction } from '../services/geminiService';
 import { getTerrainFromPosition } from '../services/gameLogic';
-import CharacterStatusHeader from './CharacterStatusHeader';
 import InventoryScreen from './InventoryScreen';
 import ResourcesScreen from './ResourcesScreen';
 import { useGame } from '../contexts/GameContext';
@@ -17,7 +16,176 @@ import NpcListScreen from './NpcListScreen';
 import StoryLog from './StoryLog';
 import CompanionScreen from './CompanionScreen';
 
-type MainView = 'overview' | 'inventory' | 'cultivation' | 'companions' | 'factions' | 'npcs' | 'bestiary' | 'quests' | 'pets' | 'resources';
+// --- SUB-COMPONENTS for the new layout ---
+
+const StatBox: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
+    <div className="bg-[var(--color-bg-tertiary)] border border-[var(--color-border-base)] rounded-md px-3 py-2 flex justify-between items-center text-sm">
+      <span className="text-[var(--color-text-medium)]">{label}</span>
+      <span className="font-semibold text-[var(--color-text-light)]">{value}</span>
+    </div>
+);
+
+const InGameCharacterPanel: React.FC = () => {
+    const { character } = useGame();
+    const [activeTab, setActiveTab] = useState<'info' | 'skills'>('info');
+    if (!character) return null;
+
+    const { baseStats, derivedStats, skills } = character;
+
+    const TabButton: React.FC<{ label: string, view: 'info' | 'skills', currentView: string }> = ({ label, view, currentView }) => (
+        <button
+            onClick={() => setActiveTab(view)}
+            className={`pb-2 text-lg font-semibold transition-colors ${currentView === view ? 'text-[var(--color-primary-light)] border-b-2 border-[var(--color-primary)]' : 'text-[var(--color-text-dark)] hover:text-[var(--color-text-medium)]'}`}
+        >
+            {label}
+        </button>
+    );
+
+    return (
+        <div className="h-full flex flex-col">
+            <div className="flex-shrink-0 flex items-center gap-6 border-b border-[var(--color-border-base)] mb-4">
+                <TabButton label="NHÂN VẬT" view="info" currentView={activeTab} />
+                <TabButton label="KỸ NĂNG" view="skills" currentView={activeTab} />
+            </div>
+            <div className="flex-grow overflow-y-auto pr-2">
+                {activeTab === 'info' && (
+                    <div className="space-y-3 animate-fade-in">
+                        <h3 className="text-xl font-bold text-[var(--color-text-light)] mb-2">Thông Tin Nhân Vật</h3>
+                        <StatBox label="Sinh Lực" value={`${Math.round(character.currentHp)} / ${derivedStats.HP}`} />
+                        <StatBox label="Thể Lực" value={baseStats.STR || 0} />
+                        <StatBox label="Lý Trí" value={baseStats.INT || 0} />
+                        <StatBox label="Thân Trọng" value={baseStats.AGI || 0} />
+                        <StatBox label="Cứng Cáp" value={baseStats.CON || 0} />
+                        <StatBox label="Tinh Thần" value={baseStats.SPI || 0} />
+                        <StatBox label="Khéo Léo" value={baseStats.DEX || 0} />
+                    </div>
+                )}
+                {activeTab === 'skills' && (
+                    <div className="space-y-2 animate-fade-in">
+                        <h3 className="text-xl font-bold text-[var(--color-text-light)] mb-2">Kỹ Năng</h3>
+                        {skills.slice(0, 10).map(skill => (
+                            <div key={skill.id} className="bg-[var(--color-bg-tertiary)] p-2 rounded-md">
+                                <p className="font-semibold text-sm text-[var(--color-primary-light)]">{skill.name}</p>
+                                <p className="text-xs text-[var(--color-text-dark)] italic truncate">{skill.description}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const NpcProfilePanel: React.FC = () => {
+    const { character } = useGame();
+    if (!character) return null;
+
+    return (
+        <div className="h-full flex flex-col">
+            <h3 className="text-xl font-bold text-[var(--color-text-light)] mb-4 flex-shrink-0 border-b border-[var(--color-border-base)] pb-2">Hồ Sơ Nhân Vật</h3>
+            <div className="flex-grow overflow-y-auto pr-2">
+                {character.metNpcs.length === 0 ? (
+                    <p className="text-[var(--color-text-dark)] italic text-center mt-8">Chưa gặp gỡ nhân vật nào...</p>
+                ) : (
+                    <div className="space-y-3">
+                        {character.metNpcs.map(npc => (
+                             <div key={npc.name} className="bg-[var(--color-bg-tertiary)] p-3 rounded-lg flex items-center gap-3">
+                                <img src={npc.imageUrl || 'https://via.placeholder.com/40'} alt={npc.name} className="w-12 h-12 rounded-full object-cover border-2 border-[var(--color-border-base)]"/>
+                                <div>
+                                    <p className="font-semibold text-[var(--color-text-light)]">{npc.name}</p>
+                                    <p className="text-xs text-[var(--color-text-dark)]">{npc.role}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+
+const WorldHeader: React.FC<{
+    onForge: () => void;
+    onMenu: () => void;
+    onSaveLoad: () => void;
+    onExit: () => void;
+}> = ({ onForge, onMenu, onSaveLoad, onExit }) => {
+    return (
+        <header className="flex-shrink-0 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+                <button onClick={onForge} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors">⚡ Sáng Tạo Năng Lực</button>
+                <button onClick={onMenu} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors">📖 Sổ Tay</button>
+            </div>
+            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 absolute left-1/2 -translate-x-1/2">
+                Tên Truyện
+            </h1>
+            <div className="flex items-center gap-2">
+                <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-1.5 text-sm">
+                    <span className="text-[var(--color-text-dark)]">Tokens: </span>
+                    <span className="font-semibold text-green-400">17337</span> / 17337
+                </div>
+                 <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-1.5 text-sm">
+                    <span className="text-[var(--color-text-dark)]">Requests: </span>
+                    <span className="font-semibold text-cyan-400">2</span>
+                </div>
+                <button onClick={onSaveLoad} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors">Lưu File</button>
+                <button onClick={onExit} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-3 py-2 text-sm font-semibold hover:bg-red-900/50 transition-colors">Thoát</button>
+            </div>
+        </header>
+    );
+};
+
+
+const PlayerInputFooter: React.FC<{
+    onActionSubmit: (action: string) => void;
+    isProcessing: boolean;
+}> = ({ onActionSubmit, isProcessing }) => {
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const [inputText, setInputText] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (inputText.trim()) {
+            onActionSubmit(inputText.trim());
+            setInputText('');
+        }
+    };
+
+    if (!isPanelOpen) {
+        return (
+             <footer className="flex-shrink-0 mt-4 flex justify-center">
+                 <button onClick={() => setIsPanelOpen(true)} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-md px-4 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
+                    Hiện Bảng Hành Động
+                 </button>
+             </footer>
+        );
+    }
+
+    return (
+        <footer className="flex-shrink-0 mt-4">
+            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-lg p-3">
+                 <form onSubmit={handleSubmit} className="flex items-center gap-2 sm:gap-4">
+                    <input 
+                        type="text" 
+                        value={inputText} 
+                        onChange={e => setInputText(e.target.value)} 
+                        disabled={isProcessing}
+                        placeholder="Bạn muốn làm gì tiếp theo?"
+                        className="flex-1 bg-[var(--color-bg-tertiary)] border-2 border-[var(--color-border-base)] rounded-lg py-2 px-4 text-white placeholder-[var(--color-text-dark)] focus:outline-none focus:border-[var(--color-primary)] transition"
+                    />
+                    <button type="submit" disabled={isProcessing || !inputText.trim()} className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
+                        Gửi
+                    </button>
+                </form>
+            </div>
+             <button onClick={() => setIsPanelOpen(false)} className="mx-auto mt-2 block text-sm text-[var(--color-text-dark)] hover:text-white">Ẩn</button>
+        </footer>
+    );
+};
+
+type MainView = 'overview' | 'inventory' | 'resources' | 'quests' | 'pets' | 'companions' | 'cultivation' | 'factions' | 'npcs' | 'bestiary';
 
 // --- Menu Modal Component ---
 const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -77,110 +245,6 @@ const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     );
 };
 
-const MovementPad: React.FC<{ onMove: (direction: 'N' | 'S' | 'E' | 'W') => void, disabled: boolean }> = ({ onMove, disabled }) => {
-    const Button = ({ dir, label, gridClass }: { dir: 'N' | 'S' | 'E' | 'W', label: string, gridClass: string }) => (
-        <button
-            onClick={() => onMove(dir)}
-            disabled={disabled}
-            className={`bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] rounded-md p-3 text-lg font-bold transition-colors disabled:opacity-50 ${gridClass}`}
-        >
-            {label}
-        </button>
-    );
-
-    return (
-        <div className="grid grid-cols-3 grid-rows-3 gap-2 w-32 mx-auto">
-            <div />
-            <Button dir="N" label="↑" gridClass="col-start-2" />
-            <div />
-            <Button dir="W" label="←" gridClass="row-start-2" />
-            <div className="row-start-2 col-start-2" />
-            <Button dir="E" label="→" gridClass="row-start-2 col-start-3" />
-            <div />
-            <Button dir="S" label="↓" gridClass="row-start-3 col-start-2" />
-            <div />
-        </div>
-    );
-};
-
-const PlayerInputPanel: React.FC<{
-    contextualActions: string[];
-    isGeneratingActions: boolean;
-    isProcessing: boolean;
-    onActionSubmit: (action: string) => void;
-    onPlayerRecover: () => void;
-    onMove: (direction: 'N' | 'S' | 'E' | 'W') => void;
-}> = ({ contextualActions, isGeneratingActions, isProcessing, onActionSubmit, onPlayerRecover, onMove }) => {
-    const [inputText, setInputText] = useState('');
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (inputText.trim()) {
-            onActionSubmit(inputText.trim());
-            setInputText('');
-        }
-    };
-
-    return (
-        <div className="bg-[var(--color-bg-main)]/60 p-3 border-t-2 border-[var(--color-border-base)] backdrop-blur-sm">
-            <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <div className="flex-shrink-0">
-                    <MovementPad onMove={onMove} disabled={isProcessing} />
-                </div>
-
-                <div className="space-y-2">
-                    {isGeneratingActions && contextualActions.length === 0 ? (
-                        <div className="text-center text-[var(--color-text-dark)] p-2 italic">AI đang suy nghĩ...</div>
-                    ) : (
-                        <>
-                            {contextualActions.slice(0, 4).map((action, index) => (
-                                <button key={index} onClick={() => onActionSubmit(action)} disabled={isProcessing} className="w-full text-center bg-[var(--color-secondary)]/10 hover:bg-[var(--color-secondary)]/20 border border-[var(--color-secondary)]/30 text-white font-semibold py-2 px-3 rounded-lg transition text-sm disabled:bg-gray-600">
-                                    {action}
-                                </button>
-                            ))}
-                        </>
-                    )}
-                     <button onClick={onPlayerRecover} disabled={isProcessing} className="w-full bg-green-800/20 hover:bg-green-700/30 border border-green-500/30 text-white font-semibold py-2 px-3 rounded-lg transition text-sm disabled:bg-gray-600">Nghỉ Ngơi</button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-                    <input 
-                        type="text" 
-                        value={inputText} 
-                        onChange={e => setInputText(e.target.value)} 
-                        disabled={isProcessing}
-                        placeholder="Bạn muốn làm gì?"
-                        className="w-full bg-[var(--color-bg-secondary)] border-2 border-[var(--color-bg-quaternary)] rounded-lg py-2 px-4 text-white placeholder-[var(--color-text-dark)] focus:outline-none focus:border-[var(--color-primary)] transition"
-                    />
-                    <button type="submit" disabled={isProcessing || !inputText.trim()} className="w-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white font-bold py-2 rounded-lg transition shadow-md hover:shadow-lg hover:shadow-[var(--color-primary)] disabled:bg-gray-500 disabled:from-gray-500 disabled:shadow-none">
-                        Gửi
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const GameHeader: React.FC<{
-    onMenu: () => void;
-    onMap: () => void;
-    onForge: () => void;
-    onSaveLoad: () => void;
-    onSettings: () => void;
-    onExit: () => void;
-}> = ({ onMenu, onMap, onForge, onSaveLoad, onSettings, onExit }) => {
-    return (
-        <div className="bg-[var(--color-bg-secondary)]/50 p-2 rounded-lg border border-[var(--color-border-base)] backdrop-blur-sm flex flex-wrap justify-center sm:justify-end items-center gap-1 sm:gap-2 max-w-md sm:max-w-none ml-auto">
-            <button onClick={onMenu} className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white font-bold py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition shadow-sm hover:shadow-md hover:shadow-[var(--color-primary)] text-xs sm:text-sm">Menu</button>
-            <button onClick={onMap} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm">Bản Đồ</button>
-            <button onClick={onForge} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm">Lò Rèn</button>
-            <button onClick={onSaveLoad} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm">Lưu/Tải</button>
-            <button onClick={onSettings} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm">Thiết Lập</button>
-            <button onClick={onExit} className="bg-red-800/80 hover:bg-red-700/80 text-white py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm">Thoát</button>
-        </div>
-    );
-};
-
 
 const WorldScreen: React.FC = () => {
     const { 
@@ -189,14 +253,10 @@ const WorldScreen: React.FC = () => {
         worldState,
         oneTimeMessages,
         setOneTimeMessages,
-        contextualActions,
-        isGeneratingActions,
-        handleGenerateContextualActions,
         handleStartCombat, 
         handleOpenForge, 
         handleOpenMenu,
         handlePlayerMove,
-        handlePlayerRecover,
         handleBackToMenu,
         handleOpenDialogue
     } = useGame();
@@ -223,34 +283,10 @@ const WorldScreen: React.FC = () => {
         }
     }, [oneTimeMessages, setOneTimeMessages]);
 
-    useEffect(() => {
-        if (character) {
-            handleGenerateContextualActions();
-        }
-    }, []);
 
     if (!character) {
         return null;
     }
-
-    const handleMove = useCallback(async (direction: 'N' | 'S' | 'E' | 'W') => {
-        if (isProcessing) return;
-        setIsProcessing(true);
-        
-        const moveAmount = 128;
-        let newPos = { ...character.position };
-        switch(direction) {
-            case 'N': newPos.y = Math.max(0, newPos.y - moveAmount); break;
-            case 'S': newPos.y = Math.min(4096, newPos.y + moveAmount); break;
-            case 'W': newPos.x = Math.max(0, newPos.x - moveAmount); break;
-            case 'E': newPos.x = Math.min(4096, newPos.x + moveAmount); break;
-        }
-
-        await handlePlayerMove(newPos);
-        await handleGenerateContextualActions();
-        
-        setIsProcessing(false);
-    }, [isProcessing, character, handlePlayerMove, handleGenerateContextualActions]);
     
     const handleActionSubmit = useCallback(async (action: string) => {
         if (!action || isProcessing) return;
@@ -270,17 +306,8 @@ const WorldScreen: React.FC = () => {
             setEventLog(prev => [{ id: crypto.randomUUID(), text: `Có lỗi xảy ra khi xử lý hành động.`, type: LogType.ERROR }, ...prev]);
         }
         
-        await handleGenerateContextualActions();
         setIsProcessing(false);
-    }, [character, isProcessing, appSettings.difficulty, handleStartCombat, handleGenerateContextualActions]);
-
-    const handlePlayerRecoverWithProcessing = async () => {
-        if (isProcessing) return;
-        setIsProcessing(true);
-        await handlePlayerRecover();
-        await handleGenerateContextualActions();
-        setIsProcessing(false);
-    };
+    }, [character, isProcessing, appSettings.difficulty, handleStartCombat]);
 
     const handleBackToMenuWithConfirmation = useCallback(() => {
         if (window.confirm("Bạn có chắc muốn trở về menu chính? Mọi tiến trình chưa lưu sẽ bị mất.")) {
@@ -296,42 +323,32 @@ const WorldScreen: React.FC = () => {
 
     return (
         <>
-            <div className="min-h-screen bg-gray-900 text-white" style={{ backgroundImage: `url('https://shared.st.dl.eccdnx.com/store_item_assets/steam/apps/3384260/extras/04%E6%88%98%E6%96%97.jpg?t=1734582082')`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
-                <div className="min-h-screen w-full bg-black/70 backdrop-blur-sm flex flex-col relative">
-                    
-                    <header className="absolute top-0 left-0 right-0 p-4 z-20 flex flex-col sm:flex-row justify-between items-start gap-4 pointer-events-none">
-                        <div className="pointer-events-auto">
-                            <CharacterStatusHeader character={character} />
-                        </div>
-                        <div className="pointer-events-auto w-full sm:w-auto">
-                            <GameHeader 
-                                onMenu={() => setIsMenuModalOpen(true)}
-                                onMap={() => setIsMapModalOpen(true)}
-                                onForge={() => handleOpenForge()}
-                                onSaveLoad={() => handleOpenMenu(GameScreen.SAVE_MANAGEMENT)}
-                                onSettings={() => handleOpenMenu(GameScreen.SETTINGS)}
-                                onExit={handleBackToMenuWithConfirmation}
-                            />
-                        </div>
-                    </header>
+            <div className="min-h-screen bg-[var(--color-bg-main)] text-[var(--color-text-light)] p-4 flex flex-col font-sans">
+                <WorldHeader
+                    onForge={handleOpenForge}
+                    onMenu={() => setIsMenuModalOpen(true)}
+                    onSaveLoad={() => handleOpenMenu(GameScreen.SAVE_MANAGEMENT)}
+                    onExit={handleBackToMenuWithConfirmation}
+                />
+                
+                <main className="flex-grow grid grid-cols-1 lg:grid-cols-10 gap-4 mt-4 overflow-hidden">
+                    {/* Left Panel */}
+                    <div className="lg:col-span-3 bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-lg p-4 h-full overflow-hidden">
+                        <InGameCharacterPanel />
+                    </div>
 
-                    <main className="flex-grow p-4 pt-40 sm:pt-32 overflow-hidden">
-                         <div className="h-full bg-[var(--color-backdrop-bg)] p-4 rounded-xl border border-[var(--color-border-base)] backdrop-blur-md">
-                             <StoryLog logs={eventLog} isProcessing={isProcessing} />
-                        </div>
-                    </main>
+                    {/* Middle Panel */}
+                    <div className="lg:col-span-4 bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-lg p-4 flex flex-col h-full overflow-hidden">
+                        <StoryLog logs={eventLog} isProcessing={isProcessing} />
+                    </div>
 
-                    <footer className="flex-shrink-0">
-                         <PlayerInputPanel 
-                            contextualActions={contextualActions}
-                            isGeneratingActions={isGeneratingActions}
-                            isProcessing={isProcessing}
-                            onActionSubmit={handleActionSubmit}
-                            onPlayerRecover={handlePlayerRecoverWithProcessing}
-                            onMove={handleMove}
-                         />
-                    </footer>
-                </div>
+                    {/* Right Panel */}
+                    <div className="lg:col-span-3 bg-[var(--color-bg-secondary)] border border-[var(--color-border-base)] rounded-lg p-4 h-full overflow-hidden">
+                        <NpcProfilePanel />
+                    </div>
+                </main>
+                
+                <PlayerInputFooter onActionSubmit={handleActionSubmit} isProcessing={isProcessing} />
             </div>
             
             {isMenuModalOpen && <MenuModal onClose={() => setIsMenuModalOpen(false)} />}

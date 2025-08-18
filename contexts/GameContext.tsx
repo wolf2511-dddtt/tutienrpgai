@@ -1149,7 +1149,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (Math.random() * 100 < catchChance) {
             const petData = convertMonsterToPet(enemy);
             const petLoyaltyInfo = await geminiService.generateLoyaltyDescription(petData.name, petData.loyalty, petData.monsterClass);
-            const newPet: Pet = { ...petData, ...petLoyaltyInfo };
+            const newPet: Pet = {
+                ...petData,
+                loyaltyDescription: petLoyaltyInfo.description,
+                oneWordStatus: petLoyaltyInfo.oneWordStatus,
+            };
             
             newChar.pets.push(newPet);
             if (!newChar.activePetId) {
