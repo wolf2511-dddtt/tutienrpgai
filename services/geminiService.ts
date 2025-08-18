@@ -1,12 +1,10 @@
 import { GoogleGenAI, Type, GenerateContentResponse, GenerateImagesResponse } from "@google/genai";
 import { Item, PlayerClass, UpgradeAIResult, TerrainType, DialogueTurn, Character, Poi, QuestType, ItemType, SoulEffect, Stat, Difficulty, Rarity, ExplorationEvent, DialogueState, Quest, QuestStatus, Skill, SkillType, SkillEffectType, TargetType, SkillEffect, WorldState, UpgradeMaterial, CultivationTechnique, Faction, FactionType, SectStoreItem, DialogueAIResponse, MonsterTemplate, NpcTemplate, AITactic, Combatant, DungeonState, DungeonFloorType, Pet, BaseStats, ForgeOptions, Element, CultivationTechniqueType } from '../types';
 import { generateItem } from "./gameLogic";
-import { loadApiKey, loadAllApiKeys } from "./storageService";
+import { loadApiKey } from "./storageService";
 import { RARITY_DATA } from "../constants";
 
 let ai: GoogleGenAI | null = null;
-let currentApiKeyIndex = 0;
-let apiKeysCache: string[] = [];
 
 // Helper function to handle API calls with retry logic for rate limiting
 async function callGeminiWithRetry<T>(apiCall: () => Promise<T>, maxRetries = 3, initialDelay = 5000): Promise<T> {
@@ -41,29 +39,23 @@ async function callGeminiWithRetry<T>(apiCall: () => Promise<T>, maxRetries = 3,
 }
 
 
-
-// Hàm khởi tạo lại client với nhiều key, ưu tiên tuần tự
+// This function will set up the client. It can be called again if the key changes.
 export function reinitializeAiClient() {
-    apiKeysCache = loadAllApiKeys();
-    if (!apiKeysCache.length) {
-        const fallbackKey = process.env.API_KEY;
-        if (fallbackKey) {
-            apiKeysCache = [fallbackKey];
-        }
-    }
-    currentApiKeyIndex = 0;
-    if (!apiKeysCache.length) {
-        ai = null;
+    const userApiKey = loadApiKey();
+    const apiKey = userApiKey || process.env.API_KEY;
+
+    if (!apiKey) {
+        ai = null; // Invalidate client if no key is available
         return;
     }
+    
     try {
-        ai = new GoogleGenAI({ apiKey: apiKeysCache[currentApiKeyIndex] });
+        ai = new GoogleGenAI({ apiKey });
     } catch (e) {
         console.error("Failed to initialize GoogleGenAI. The API Key might be invalid.", e);
-        ai = null;
+        ai = null; // Invalidate client on bad key
     }
 }
-
 
 
 function getAiClient(): GoogleGenAI {
@@ -71,47 +63,10 @@ function getAiClient(): GoogleGenAI {
         reinitializeAiClient();
     }
     if (!ai) {
+        // Updated error message to be more helpful
         throw new Error("API Key của Google Gemini chưa được cấu hình. Vui lòng vào mục 'Thiết Lập' để nhập key, hoặc đảm bảo biến môi trường API_KEY đã được thiết lập chính xác.");
     }
     return ai;
-}
-
-// Hàm thử lần lượt các key khi gặp lỗi quota/giới hạn
-async function callGeminiWithMultipleKeys<T>(apiCallFactory: (client: GoogleGenAI) => Promise<T>, maxRetries = 3, initialDelay = 5000): Promise<T> {
-    let triedKeys: number[] = [];
-    let retries = 0;
-    let lastError: any = null;
-    // Đảm bảo cache luôn mới nhất
-    apiKeysCache = loadAllApiKeys();
-    if (!apiKeysCache.length) {
-        const fallbackKey = process.env.API_KEY;
-        if (fallbackKey) {
-            apiKeysCache = [fallbackKey];
-        }
-    }
-    for (let i = 0; i < apiKeysCache.length; i++) {
-        currentApiKeyIndex = i;
-        try {
-            ai = new GoogleGenAI({ apiKey: apiKeysCache[i] });
-            return await callGeminiWithRetry(() => apiCallFactory(ai), maxRetries, initialDelay);
-        } catch (error: any) {
-            lastError = error;
-            const errorMessage = (error.message || error.toString()).toLowerCase();
-            const isRetryable = errorMessage.includes('429') ||
-                errorMessage.includes('500') ||
-                errorMessage.includes('internal error') ||
-                errorMessage.includes('resource_exhausted') ||
-                errorMessage.includes('rate limit') ||
-                errorMessage.includes('quota');
-            if (!isRetryable) {
-                throw error;
-            }
-            // Nếu là lỗi quota thì thử key tiếp theo
-            continue;
-        }
-    }
-    // Nếu tất cả key đều lỗi quota
-    throw lastError || new Error("Tất cả API Key đều đã hết hạn hoặc gặp lỗi giới hạn. Vui lòng kiểm tra lại key của bạn.");
 }
 
 
@@ -229,7 +184,7 @@ export const generateItemDetails = async (item: Item): Promise<{name: string, de
 
     try {
         const aiClient = getAiClient();
-    const response: GenerateContentResponse = await callGeminiWithMultipleKeys((client) => client.models.generateContent({
+        const response: GenerateContentResponse = await callGeminiWithRetry(() => aiClient.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt
         }));
@@ -547,7 +502,7 @@ export const generateImage = async (prompt: string, isScenery: boolean = false):
     const finalPrompt = `cinematic, fantasy art, highly detailed, sharp focus, ${prompt}`;
     try {
         const aiClient = getAiClient();
-    const response: GenerateImagesResponse = await callGeminiWithMultipleKeys((client) => client.models.generateImages({
+        const response: GenerateImagesResponse = await callGeminiWithRetry(() => aiClient.models.generateImages({
             model: 'imagen-3.0-generate-002',
             prompt: finalPrompt,
             config: {

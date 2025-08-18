@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Character, Stat, Skill, SkillType, DerivedStats, BaseStats, SkillEffectType, TargetType, Element } from '../types';
 import { getActiveSetBonuses, calculateBonusStatsFromEquipment, calculateBaseStatBonusesFromEquipment } from '../services/gameLogic';
@@ -197,12 +192,11 @@ return (
                     <DerivedStatRow label="Công phép" value={derivedStats.MATK} change={statChanges[Stat.MATK]} />
                     <DerivedStatRow label="Phòng thủ" value={derivedStats.DEF.toFixed(2)} change={statChanges[Stat.DEF]} />
                     <DerivedStatRow label="Tốc độ" value={derivedStats.Speed.toFixed(1)} change={statChanges[Stat.SPEED]} />
-                    <DerivedStatRow label="Xuyên giáp" value={derivedStats[Stat.PENETRATION].toFixed(2)} change={statChanges[Stat.PENETRATION]} />
+                    <DerivedStatRow label="Xuyên giáp" value={`${derivedStats[Stat.PENETRATION].toFixed(2)}%`} change={statChanges[Stat.PENETRATION]} />
                     <DerivedStatRow label="Né tránh" value={`${derivedStats[Stat.EVASION].toFixed(2)}%`} change={statChanges[Stat.EVASION]} />
                     <DerivedStatRow label="Chí mạng" value={`${derivedStats[Stat.CRIT_RATE].toFixed(2)}%`} change={statChanges[Stat.CRIT_RATE]} />
                     <DerivedStatRow label="Chính xác" value={`${derivedStats[Stat.ACCURACY].toFixed(2)}%`} change={statChanges[Stat.ACCURACY]} />
                     <DerivedStatRow label="Hút Máu" value={`${derivedStats[Stat.LIFESTEAL].toFixed(2)}%`} change={statChanges[Stat.LIFESTEAL]} />
-                    <DerivedStatRow label="Tốc Độ Đánh" value={derivedStats[Stat.ATK_SPEED].toFixed(2)} change={statChanges[Stat.ATK_SPEED]} />
                 </div>
             </div>
         </div>
@@ -213,7 +207,7 @@ return (
                 <div className="space-y-1 text-sm bg-gray-800/50 p-4 rounded-lg columns-1 sm:columns-2 gap-4">
                     {Object.entries(bonusEquipmentStats).map(([stat, value]) => {
                         if (value === 0 || stat in equipmentBaseStatBonuses) return null;
-                        const isPercent = stat === Stat.CRIT_RATE || stat === Stat.LIFESTEAL || stat === Stat.EVASION;
+                        const isPercent = stat === Stat.CRIT_RATE || stat === Stat.LIFESTEAL || stat === Stat.EVASION || stat === Stat.PENETRATION || stat === Stat.ACCURACY;
                         return <DerivedStatRow key={stat} label={stat} value={isPercent ? `${value.toFixed(2)}%` : value.toFixed(0)} />;
                     })}
                 </div>

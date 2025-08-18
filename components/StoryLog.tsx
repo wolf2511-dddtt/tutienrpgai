@@ -1,7 +1,6 @@
-
 import React, { useRef, useEffect } from 'react';
+import { ExplorationEventLog, LogType, FontSize } from '../types';
 import { useGame } from '../contexts/GameContext';
-import { ExplorationEventLog, LogType } from '../types';
 
 interface StoryLogProps {
     logs: ExplorationEventLog[];
@@ -20,8 +19,6 @@ const LogIcons: Record<LogType, string> = {
 
 const StoryLog: React.FC<StoryLogProps> = ({ logs, isProcessing }) => {
     const { appSettings } = useGame();
-    const fontSize = appSettings.fontSize || 18;
-    const fontFamily = appSettings.fontFamily || 'Inter, sans-serif';
     const logContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -29,21 +26,33 @@ const StoryLog: React.FC<StoryLogProps> = ({ logs, isProcessing }) => {
             logContainerRef.current.scrollTop = 0; // Scroll to top to see newest logs
         }
     }, [logs]);
+    
+    const getFontSizeClass = () => {
+        switch (appSettings.storyLogFontSize) {
+            case FontSize.SMALL:
+                return 'text-xs';
+            case FontSize.LARGE:
+                return 'text-base';
+            case FontSize.MEDIUM:
+            default:
+                return 'text-sm';
+        }
+    };
 
     return (
         <div className="h-full flex flex-col">
-            <div ref={logContainerRef} className="flex-grow overflow-y-auto pr-2 space-y-3 flex flex-col-reverse">
+            <div ref={logContainerRef} className={`flex-grow overflow-y-auto pr-2 space-y-3 flex flex-col-reverse ${getFontSizeClass()}`}>
                 {/* Reversed order rendering */}
                 {logs.map((log) => (
                     <div key={log.id} className="border-t border-gray-700/50 pt-2 mt-2 first:border-t-0 first:pt-0 first:mt-0 text-gray-200 italic animate-fade-in flex items-start gap-2">
                         <span className="text-lg mt-0.5">{LogIcons[log.type] || '🌀'}</span>
                         <div className="flex-1">
-                            <p style={{ fontSize, fontFamily, margin: 0 }}>{log.text}</p>
+                            <p>{log.text}</p>
                             {log.sources && log.sources.length > 0 && (
-                                <div className="text-xs text-gray-500 mt-1 pl-2" style={{ fontFamily }}>
+                                <div className="text-xs text-gray-500 mt-1 pl-2">
                                     Nguồn tham khảo từ AI: {log.sources.map((s, i) => (
                                         <React.Fragment key={s.uri}>
-                                            <a href={s.uri} target="_blank" rel="noopener noreferrer" className="underline hover:text-cyan-400" style={{ fontFamily }}>
+                                            <a href={s.uri} target="_blank" rel="noopener noreferrer" className="underline hover:text-cyan-400">
                                                 {s.title}
                                             </a>
                                             {i < log.sources!.length - 1 && ', '}

@@ -1,11 +1,3 @@
-// Lấy tất cả API key từ localStorage (ưu tiên key đầu tiên là key cũ để tương thích)
-export const loadAllApiKeys = (): string[] => {
-    // Nếu đã lưu danh sách key riêng, có thể lấy từ localStorage với key khác, ví dụ 'USER_API_KEYS'
-    // Ở đây chỉ lấy key đầu tiên (giống logic cũ), có thể mở rộng nếu muốn lưu nhiều key
-    const mainKey = loadApiKey();
-    // Có thể lấy thêm các key khác từ state Settings nếu muốn (tùy vào cách bạn muốn đồng bộ)
-    return mainKey ? [mainKey] : [];
-};
 import { AppSettings, SaveFile, SaveSlot } from '../types';
 import { NUM_SAVE_SLOTS, LOCAL_STORAGE_KEY_SETTINGS, LOCAL_STORAGE_KEY_SAVE_GAME, LOCAL_STORAGE_KEY_API_KEY, DEFAULT_SETTINGS } from '../constants';
 

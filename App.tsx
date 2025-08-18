@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { GameScreen } from './types';
+import { GameScreen, FontSize, ColorTheme } from './types';
 import MainMenu from './components/MainMenu';
 import CharacterCreator from './components/CharacterCreator';
 import WorldScreen from './components/WorldScreen';
@@ -16,7 +16,7 @@ import LevelUpModal from './components/LevelUpModal';
 
 const AppContent: React.FC = () => {
   const { 
-    screen, character, enemy,
+    screen, character, enemy, appSettings,
     handleOpenMenu, handleBackToMenu
   } = useGame();
 
@@ -27,6 +27,25 @@ const AppContent: React.FC = () => {
         refreshSaveSlots();
     }
   }, [screen, refreshSaveSlots]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    // Font size
+    Object.values(FontSize).forEach(size => root.classList.remove(`font-size-${size}`));
+    root.classList.add(`font-size-${appSettings.fontSize}`);
+
+    // Color theme
+    Object.values(ColorTheme).forEach(theme => root.classList.remove(`theme-${theme}`));
+    root.classList.add(`theme-${appSettings.colorTheme}`);
+
+    // Reduce Motion
+    if (appSettings.reduceMotion) {
+      root.classList.add('reduce-motion');
+    } else {
+      root.classList.remove('reduce-motion');
+    }
+  }, [appSettings.fontSize, appSettings.colorTheme, appSettings.reduceMotion]);
+
 
   const renderScreen = () => {
     switch (screen) {
