@@ -170,13 +170,13 @@ const GameHeader: React.FC<{
     onExit: () => void;
 }> = ({ onMenu, onMap, onForge, onSaveLoad, onSettings, onExit }) => {
     return (
-        <div className="bg-[var(--color-bg-secondary)]/50 p-2 rounded-lg border border-[var(--color-border-base)] backdrop-blur-sm flex justify-end items-center gap-2">
-            <button onClick={onMenu} className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white font-bold py-2 px-4 rounded-lg transition shadow-sm hover:shadow-md hover:shadow-[var(--color-primary)] text-sm">Menu</button>
-            <button onClick={onMap} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-2 px-4 rounded-lg transition text-sm">Bản Đồ</button>
-            <button onClick={onForge} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-2 px-4 rounded-lg transition text-sm">Lò Rèn</button>
-            <button onClick={onSaveLoad} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-2 px-4 rounded-lg transition text-sm">Lưu/Tải</button>
-            <button onClick={onSettings} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-2 px-4 rounded-lg transition text-sm">Thiết Lập</button>
-            <button onClick={onExit} className="bg-red-800/80 hover:bg-red-700/80 text-white py-2 px-4 rounded-lg transition text-sm">Thoát</button>
+        <div className="bg-[var(--color-bg-secondary)]/50 p-2 rounded-lg border border-[var(--color-border-base)] backdrop-blur-sm flex flex-wrap justify-center sm:justify-end items-center gap-1 sm:gap-2 max-w-md sm:max-w-none ml-auto">
+            <button onClick={onMenu} className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white font-bold py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition shadow-sm hover:shadow-md hover:shadow-[var(--color-primary)] text-xs sm:text-sm">Menu</button>
+            <button onClick={onMap} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm">Bản Đồ</button>
+            <button onClick={onForge} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm">Lò Rèn</button>
+            <button onClick={onSaveLoad} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm">Lưu/Tải</button>
+            <button onClick={onSettings} className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-white py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm">Thiết Lập</button>
+            <button onClick={onExit} className="bg-red-800/80 hover:bg-red-700/80 text-white py-1 px-3 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm">Thoát</button>
         </div>
     );
 };
@@ -299,11 +299,11 @@ const WorldScreen: React.FC = () => {
             <div className="min-h-screen bg-gray-900 text-white" style={{ backgroundImage: `url('https://shared.st.dl.eccdnx.com/store_item_assets/steam/apps/3384260/extras/04%E6%88%98%E6%96%97.jpg?t=1734582082')`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
                 <div className="min-h-screen w-full bg-black/70 backdrop-blur-sm flex flex-col relative">
                     
-                    <header className="absolute top-0 left-0 right-0 p-4 z-20 flex justify-between items-start pointer-events-none">
+                    <header className="absolute top-0 left-0 right-0 p-4 z-20 flex flex-col sm:flex-row justify-between items-start gap-4 pointer-events-none">
                         <div className="pointer-events-auto">
                             <CharacterStatusHeader character={character} />
                         </div>
-                        <div className="pointer-events-auto">
+                        <div className="pointer-events-auto w-full sm:w-auto">
                             <GameHeader 
                                 onMenu={() => setIsMenuModalOpen(true)}
                                 onMap={() => setIsMapModalOpen(true)}
@@ -315,7 +315,7 @@ const WorldScreen: React.FC = () => {
                         </div>
                     </header>
 
-                    <main className="flex-grow p-4 pt-40 overflow-hidden">
+                    <main className="flex-grow p-4 pt-40 sm:pt-32 overflow-hidden">
                          <div className="h-full bg-[var(--color-backdrop-bg)] p-4 rounded-xl border border-[var(--color-border-base)] backdrop-blur-md">
                              <StoryLog logs={eventLog} isProcessing={isProcessing} />
                         </div>

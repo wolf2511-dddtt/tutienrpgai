@@ -143,7 +143,7 @@ export const CLASS_STATS: { [key in PlayerClass]: { levelUp: BaseStats, realmBon
     },
 };
 
-export const RARITY_DATA = {
+export const RARITY_DATA: { [key in Rarity]: { color: string, borderColor: string, multiplier: number, bonusStats: number, maxUpgrade: number } } = {
     [Rarity.COMMON]: { color: 'var(--rarity-common-text)', borderColor: 'var(--rarity-common-border)', multiplier: 1.0, bonusStats: 0, maxUpgrade: 5 },
     [Rarity.UNCOMMON]: { color: 'var(--rarity-uncommon-text)', borderColor: 'var(--rarity-uncommon-border)', multiplier: 1.2, bonusStats: 1, maxUpgrade: 6 },
     [Rarity.RARE]: { color: 'var(--rarity-rare-text)', borderColor: 'var(--rarity-rare-border)', multiplier: 1.5, bonusStats: 2, maxUpgrade: 8 },
@@ -151,6 +151,7 @@ export const RARITY_DATA = {
     [Rarity.LEGENDARY]: { color: 'var(--rarity-legendary-text)', borderColor: 'var(--rarity-legendary-border)', multiplier: 2.5, bonusStats: 4, maxUpgrade: 12 },
     [Rarity.MYTHIC]: { color: 'var(--rarity-mythic-text)', borderColor: 'var(--rarity-mythic-border)', multiplier: 3.5, bonusStats: 5, maxUpgrade: 15 },
 };
+
 
 export const AFFIXES: { [key in AffixId]: Affix } = {
     [AffixId.LIFESTEAL]: {
