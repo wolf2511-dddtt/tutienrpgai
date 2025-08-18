@@ -2,13 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { GameScreen } from '../types';
 import { useGame } from '../contexts/GameContext';
 import { MENU_BACKGROUND_IMAGES } from '../data/menuBackgrounds';
+import ChangelogModal from './ChangelogModal';
 
 const MainMenu: React.FC = () => {
     const { handleOpenImageLibrary, isFullscreen, handleToggleFullscreen, handleOpenMenu, saveSlots, handleStartNewGame, handleQuickPlay, isQuickPlayLoading, handleDevQuickStart } = useGame();
     const activeSaveCount = saveSlots.filter(s => s.characterName).length;
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [version, setVersion] = useState('');
+    const [isChangelogVisible, setIsChangelogVisible] = useState(false);
 
     useEffect(() => {
+        // Fetch and parse version from metadata.json
+        fetch('/metadata.json')
+            .then(res => res.json())
+            .then(data => {
+                const name = data.name || '';
+                const versionMatch = name.match(/(\d+\.\d+\.\d+)/);
+                if (versionMatch) {
+                    setVersion(versionMatch[1]);
+                } else {
+                    setVersion('N/A');
+                }
+            })
+            .catch(err => {
+                console.error("Could not load version from metadata", err);
+                setVersion('N/A');
+            });
+        
         const preloadImages = () => {
             MENU_BACKGROUND_IMAGES.forEach(src => {
                 new Image().src = src;
@@ -71,8 +91,11 @@ const MainMenu: React.FC = () => {
                     <button onClick={handleOpenImageLibrary} className="hover:text-white transition-colors">Thư Viện Ảnh</button>
                     <button onClick={handleDevQuickStart} className="text-yellow-400 hover:text-yellow-300 transition-colors">Vào Nhanh (Dev)</button>
                 </div>
-                <p>Phiên bản 2.2.0</p>
+                <button onClick={() => setIsChangelogVisible(true)} className="hover:text-white transition-colors">
+                    Phiên bản {version}
+                </button>
             </footer>
+            {isChangelogVisible && <ChangelogModal onClose={() => setIsChangelogVisible(false)} />}
         </div>
     );
 };

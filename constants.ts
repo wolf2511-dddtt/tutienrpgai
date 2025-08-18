@@ -1,4 +1,3 @@
-
 import { Realm, PlayerClass, Rarity, Stat, ItemType, UpgradeMaterial, UpgradeConsumable, Item, AffixId, Affix, ItemSet, Skill, SkillType, TargetType, TerrainType, Poi, BaseStats, AppSettings, Difficulty, SkillEffectType, MonsterRank, Element, LinhCanQuality, LinhCan, ColorTheme } from './types';
 
 export const MAP_WIDTH = 20;
@@ -327,7 +326,8 @@ export const checkDegradeOnFail = (level: number) => {
 }
 
 export const NUM_SAVE_SLOTS = 3;
-export const LOCAL_STORAGE_KEY_API_KEY = 'rpg_ai_sim_api_key';
+export const LOCAL_STORAGE_KEY_API_KEY_OLD = 'rpg_ai_sim_api_key'; // Renamed for migration
+export const LOCAL_STORAGE_KEY_API_KEYS = 'rpg_ai_sim_api_keys'; // New key for multiple keys
 export const LOCAL_STORAGE_KEY_SETTINGS = 'rpg_ai_sim_settings';
 export const LOCAL_STORAGE_KEY_SAVE_GAME = 'rpg_ai_sim_save_';
 

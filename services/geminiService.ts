@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type, GenerateContentResponse, GenerateImagesResponse } from "@google/genai";
 import { Item, PlayerClass, UpgradeAIResult, TerrainType, DialogueTurn, Character, Poi, QuestType, ItemType, SoulEffect, Stat, Difficulty, Rarity, ExplorationEvent, DialogueState, Quest, QuestStatus, Skill, SkillType, SkillEffectType, TargetType, SkillEffect, WorldState, UpgradeMaterial, CultivationTechnique, Faction, FactionType, SectStoreItem, DialogueAIResponse, MonsterTemplate, NpcTemplate, AITactic, Combatant, DungeonState, DungeonFloorType, Pet, BaseStats, ForgeOptions, Element, CultivationTechniqueType } from '../types';
 import { generateItem } from "./gameLogic";
-import { loadApiKey } from "./storageService";
+import { loadApiKeys } from "./storageService";
 import { RARITY_DATA } from "../constants";
 
 let ai: GoogleGenAI | null = null;
@@ -41,8 +41,10 @@ async function callGeminiWithRetry<T>(apiCall: () => Promise<T>, maxRetries = 3,
 
 // This function will set up the client. It can be called again if the key changes.
 export function reinitializeAiClient() {
-    const userApiKey = loadApiKey();
-    const apiKey = userApiKey || process.env.API_KEY;
+    const apiKeys = loadApiKeys();
+    // Select a random key from the pool to use for this session/initialization
+    const activeApiKey = apiKeys.length > 0 ? apiKeys[Math.floor(Math.random() * apiKeys.length)] : null;
+    const apiKey = activeApiKey || process.env.API_KEY;
 
     if (!apiKey) {
         ai = null; // Invalidate client if no key is available
@@ -63,6 +65,10 @@ function getAiClient(): GoogleGenAI {
         reinitializeAiClient();
     }
     if (!ai) {
+        const keyCount = loadApiKeys().length;
+        if (keyCount > 0) {
+             throw new Error(`Đã có ${keyCount} API Key được lưu, nhưng không thể khởi tạo Google Gemini client. Key có thể không hợp lệ.`);
+        }
         // Updated error message to be more helpful
         throw new Error("API Key của Google Gemini chưa được cấu hình. Vui lòng vào mục 'Thiết Lập' để nhập key, hoặc đảm bảo biến môi trường API_KEY đã được thiết lập chính xác.");
     }

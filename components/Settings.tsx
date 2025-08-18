@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { AppSettings, Rarity, ColorTheme } from '../types';
-import { deleteAllData, saveApiKey, loadApiKey } from '../services/storageService';
+import { deleteAllData, saveApiKeys, loadApiKeys } from '../services/storageService';
 import { useGame } from '../contexts/GameContext';
 import { reinitializeAiClient } from '../services/geminiService';
 
@@ -27,14 +26,12 @@ const Slider: React.FC<{ label: string; value: number; onChange: (e: React.Chang
 const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     const { appSettings, handleSettingsChange } = useGame();
     const [currentSettings, setCurrentSettings] = useState<AppSettings>(appSettings);
-    const [apiKey, setApiKey] = useState('');
+    const [apiKeysInput, setApiKeysInput] = useState('');
     const [notification, setNotification] = useState('');
 
     useEffect(() => {
-        const savedKey = loadApiKey();
-        if (savedKey) {
-            setApiKey(savedKey);
-        }
+        const savedKeys = loadApiKeys();
+        setApiKeysInput(savedKeys.join('\n'));
     }, []);
 
     const handleChange = (field: keyof AppSettings, value: any) => {
@@ -49,7 +46,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
     const handleSaveSettings = () => {
         handleSettingsChange(currentSettings);
-        saveApiKey(apiKey);
+        const keys = apiKeysInput.split('\n').map(k => k.trim()).filter(Boolean);
+        saveApiKeys(keys);
         reinitializeAiClient();
         setNotification('Đã lưu thiết lập!');
         setTimeout(() => setNotification(''), 2000);
@@ -77,14 +75,16 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
                 <div className="space-y-6">
                      <div>
-                        <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">API Key</h3>
-                        <p className="text-xs text-[var(--color-text-dark)] mb-2">Nhập Google Gemini API Key của bạn. Key này sẽ được ưu tiên hơn so với key hệ thống (nếu có).</p>
-                        <input
-                            type="password"
-                            value={apiKey}
-                            onChange={e => setApiKey(e.target.value)}
-                            placeholder="Nhập API Key..."
-                            className="w-full bg-[var(--color-bg-secondary)] p-3 rounded-lg border-2 border-[var(--color-bg-quaternary)] focus:border-[var(--color-primary)] outline-none transition"
+                        <h3 className="text-xl font-semibold text-[var(--color-text-light)] mb-3">Quản lý API Keys</h3>
+                        <p className="text-xs text-[var(--color-text-dark)] mb-2">Nhập các Google Gemini API Key của bạn, mỗi key một dòng. Hệ thống sẽ tự động luân phiên sử dụng các key để tránh bị giới hạn.</p>
+                        <textarea
+                            value={apiKeysInput}
+                            onChange={e => setApiKeysInput(e.target.value)}
+                            placeholder="AIzaSy...
+AIzaSy...
+AIzaSy..."
+                            rows={4}
+                            className="w-full bg-[var(--color-bg-secondary)] p-3 rounded-lg border-2 border-[var(--color-bg-quaternary)] focus:border-[var(--color-primary)] outline-none transition resize-y font-mono"
                         />
                     </div>
                     
