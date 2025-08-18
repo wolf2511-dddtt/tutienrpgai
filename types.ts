@@ -423,6 +423,7 @@ export interface MetNpcInfo {
     factionName?: string;
     affinity: number;
     imageUrl?: string;
+    imagePrompt?: string;
 }
 
 export interface Pet {
@@ -593,6 +594,7 @@ export interface NpcTemplate {
     role: string;
     backstory: string;
     factionId: string | null;
+    imagePrompt: string;
 }
 
 export interface DungeonFloor {
@@ -649,7 +651,7 @@ export type ExplorationEvent =
     | { type: 'TEXT', log: string, groundingSources?: { uri: string; title: string }[] }
     | { type: 'ENEMY', log: string, groundingSources?: { uri: string; title: string }[] }
     | { type: 'BOSS', log: string, groundingSources?: { uri: string; title: string }[] }
-    | { type: 'NPC', log: string, dialogue: DialogueState, groundingSources?: { uri: string; title: string }[] }
+    | { type: 'NPC', log: string, dialogue: DialogueState, npcDetails: { name: string, role: string, greeting: string, imagePrompt: string }, groundingSources?: { uri: string; title: string }[] }
     | { type: 'ITEM', log: string, item: Item, groundingSources?: { uri: string; title: string }[] };
 
 
@@ -745,7 +747,7 @@ export interface GameContextType {
     handleEnchantItem: (item: Item) => Promise<{ updatedItem: Item, updatedCharacter: Character, message: string } | null>;
     handleDismantleItem: (item: Item) => Promise<{ materialsGained: { [key in UpgradeMaterial]?: number }, message: string } | null>;
     setOneTimeMessages: Dispatch<SetStateAction<ExplorationEventLog[]>>;
-    handleOpenTransientDialogue: (dialogue: DialogueState) => Promise<void>;
+    handleOpenTransientDialogue: (dialogue: DialogueState, imagePrompt: string) => Promise<void>;
     handleContinueTransientDialogue: (message: string) => Promise<void>;
     handleLearnCultivationTechnique: (item: Item) => Promise<void>;
     handleActivateCultivationTechnique: (techniqueId: string | null) => Promise<void>;

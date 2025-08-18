@@ -285,7 +285,7 @@ export const generateExploreEvent = async (character: Character, worldState: Wor
     - **ENEMY Event (Tỉ lệ 30%):** Một kẻ địch thông thường.
     - **NPC Event (Tỉ lệ 20%):** Một cuộc gặp gỡ với một nhân vật.
     - **TEXT Event (còn lại):** Mô tả không khí hoặc một phát hiện nhỏ.
-3.  **Điền vào JSON:** Điền đầy đủ thông tin vào JSON theo schema. Nếu là NPC, hãy tạo chi tiết cho NPC đó.
+3.  **Điền vào JSON:** Điền đầy đủ thông tin vào JSON theo schema. Nếu là NPC, hãy tạo chi tiết cho NPC đó, bao gồm cả 'imagePrompt'.
 `;
 
     const schema = {
@@ -300,8 +300,9 @@ export const generateExploreEvent = async (character: Character, worldState: Wor
                     name: { type: Type.STRING },
                     role: { type: Type.STRING },
                     greeting: { type: Type.STRING },
-                    imagePrompt: { type: Type.STRING }
-                }
+                    imagePrompt: { type: Type.STRING, description: "Mô tả ngắn để AI tạo ảnh, vd: 'an old wise master with a long white beard'" }
+                },
+                 required: ["name", "role", "greeting", "imagePrompt"]
             }
         },
         required: ["eventType", "logMessage"]
@@ -332,7 +333,7 @@ export const generateExploreEvent = async (character: Character, worldState: Wor
                         affinity: 0,
                         options: [],
                     };
-                    return { type: 'NPC', log: result.logMessage, dialogue, groundingSources: sources };
+                    return { type: 'NPC', log: result.logMessage, dialogue, npcDetails: result.npcDetails, groundingSources: sources };
                 }
             case 'BOSS':
                 return { type: 'BOSS', log: result.logMessage, groundingSources: sources };
@@ -675,12 +676,12 @@ Chỉ trả về JSON.`;
     }
 };
 
-export const generateNpcDetails = async (poi: Poi, faction: Faction | undefined, worldState: WorldState): Promise<{ name: string, role: string }> => {
+export const generateNpcDetails = async (poi: Poi, faction: Faction | undefined, worldState: WorldState): Promise<{ name: string, role: string, imagePrompt: string }> => {
     // Check if a notable NPC is already assigned to this faction
     if (faction) {
         const notableNpc = worldState.notableNpcs.find(npc => npc.factionId === faction.id);
         if (notableNpc) {
-            return { name: notableNpc.name, role: notableNpc.role };
+            return { name: notableNpc.name, role: notableNpc.role, imagePrompt: notableNpc.imagePrompt };
         }
     }
 
@@ -688,14 +689,16 @@ export const generateNpcDetails = async (poi: Poi, faction: Faction | undefined,
 Hãy tạo:
 1.  **name:** Tên NPC.
 2.  **role:** Chức vụ/vai trò của họ (VD: "Trưởng lão", "Đệ tử gác cổng", "Chủ tiệm").
+3.  **imagePrompt:** Mô tả ngắn để AI tạo ảnh (VD: "an old wise master with a long white beard").
 Chỉ trả về JSON.`;
     const schema = {
         type: Type.OBJECT,
         properties: {
             name: { type: Type.STRING },
-            role: { type: Type.STRING }
+            role: { type: Type.STRING },
+            imagePrompt: { type: Type.STRING }
         },
-        required: ["name", "role"]
+        required: ["name", "role", "imagePrompt"]
     };
     try {
         const aiClient = getAiClient();
@@ -1477,7 +1480,7 @@ export const generateBackstory = async (name: string, playerClass: string, conte
 export const generateDynamicEntities = async (
     worldInfo: { name: string, description: string, factions: Faction[] },
     storyInfo?: { title: string, author: string }
-): Promise<{ npcs: (Omit<NpcTemplate, 'factionId'> & { factionName: string | null })[] }> => {
+): Promise<{ npcs: (Omit<NpcTemplate, 'factionId'> & { factionName: string | null, imagePrompt: string })[] }> => {
     const prompt = `Dựa trên bối cảnh thế giới và thông tin truyện (nếu có), hãy tạo ra 5-7 NPC nổi bật (notable NPCs).
     **Thế giới:** ${worldInfo.name} - ${worldInfo.description}
     **Các phe phái:** ${worldInfo.factions.map(f => f.name).join(', ')}
@@ -1488,6 +1491,7 @@ export const generateDynamicEntities = async (
     - role: Vai trò (ví dụ: "Trưởng lão tông môn", "Tán tu bí ẩn", "Yêu vương")
     - backstory: Bối cảnh ngắn gọn
     - factionName: Tên phe phái họ thuộc về (phải có trong danh sách trên), hoặc null.
+    - imagePrompt: Mô tả ngắn để AI tạo ảnh (VD: "an old wise master with a long white beard").
     
     Chỉ trả về một đối tượng JSON có key là "npcs" và value là một mảng các đối tượng NPC.`;
 
@@ -1502,9 +1506,10 @@ export const generateDynamicEntities = async (
                         name: { type: Type.STRING },
                         role: { type: Type.STRING },
                         backstory: { type: Type.STRING },
-                        factionName: { type: Type.STRING, nullable: true }
+                        factionName: { type: Type.STRING, nullable: true },
+                        imagePrompt: { type: Type.STRING }
                     },
-                    required: ["name", "role", "backstory", "factionName"]
+                    required: ["name", "role", "backstory", "factionName", "imagePrompt"]
                 }
             }
         },

@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useCallback, useContext, useEffect, ReactNode } from 'react';
 import { GameScreen, Character, Item, UpgradeMaterial, ImageLibraryItem, SaveSlot, AppSettings, SaveFile, WorldState, ItemType, Poi, Quest, QuestStatus, QuestType, DialogueState, DialogueTurn, SoulEffect, BaseStats, Difficulty, GameContextType, Rarity, TerrainType, SkillType, Pet, PetStatus, UpgradeConsumable, ExplorationEventLog, ExplorationEvent, CultivationTechnique, Faction, SectStoreItem, DialogueAIResponse, NpcTemplate, MonsterTemplate, DungeonState, DungeonFloorType, Skill, ForgeOptions, Stat, MonsterRank, Element, MetNpcInfo, LogType, ServantTask, Servant, PlayerClass } from '../types';
 import { createInitialCharacter, fullyUpdateCharacter, createMonster, getDismantleResult, generateItem, gainExp, convertMonsterToPet, gainExpForPet, fullyUpdatePet, calculateForgingExpToNextLevel, createBoss, getTerrainFromPosition, convertEnemyToServant } from '../services/gameLogic';
@@ -42,6 +41,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isQuickPlayLoading, setIsQuickPlayLoading] = useState(false);
     const [levelUpInfo, setLevelUpInfo] = useState<{ newLevel: number, realmChanged: boolean, newRealm: string } | null>(null);
     const [isStartingCombat, setIsStartingCombat] = useState(false);
+    // This state is used to temporarily hold the selected pet ID for some actions
+    const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
 
 
     const refreshSaveSlots = useCallback(() => {
@@ -103,6 +104,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [character, worldState]);
 
+    const handleDesignWorldComplete = useCallback((analysisResults: any, summary: { prompt: string; keywords: string; }, storyInfo?: { title: string; author: string; }) => {
+        setDesignedWorldPrompt(summary);
+        setDesignedWorldStoryInfo(storyInfo || null);
+        setScreen(GameScreen.CREATOR);
+    }, []);
+
     const handleCreateGame = useCallback(async (name: string, playerClass: string, classDefinition: BaseStats | undefined, characterContext: string, worldPrompt: string, worldKeywords: string, difficulty: Difficulty, storyInfo?: { title: string; author: string }) => {
         
         // Use predefined world data instead of generating
@@ -141,6 +148,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             role: n.role,
             backstory: n.backstory,
             factionId: n.factionName ? factionNameToIdMap.get(n.factionName) || null : null,
+            imagePrompt: n.imagePrompt,
         }));
         
         let newCharacter = createInitialCharacter(name, playerClass, classDefinition, worldFactions);
@@ -281,25 +289,42 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setScreen(GameScreen.WORLD);
     }, []);
 
-    const handleOpenTransientDialogue = useCallback(async (dialogue: DialogueState) => {
+    const handleOpenTransientDialogue = useCallback(async (dialogue: DialogueState, imagePrompt: string) => {
         if (!character) return;
-        dialogue.affinity = 0;
-        dialogue.options = [];
 
         const newChar = { ...character };
         const npcExists = newChar.metNpcs.some(npc => npc.name === dialogue.npcName);
+        let metNpcRef: MetNpcInfo | undefined;
+
         if (!npcExists) {
-            newChar.metNpcs.push({
+            metNpcRef = {
                 name: dialogue.npcName,
                 role: dialogue.npcRole,
                 affinity: 0,
-                imageUrl: dialogue.npcImageUrl,
-            });
+                imageUrl: undefined,
+                imagePrompt: imagePrompt,
+            };
+            newChar.metNpcs.push(metNpcRef);
             setCharacter(await fullyUpdateCharacter(newChar));
+        } else {
+            metNpcRef = newChar.metNpcs.find(npc => npc.name === dialogue.npcName);
         }
 
-        setTransientDialogue(dialogue);
+        setTransientDialogue({ ...dialogue, affinity: metNpcRef?.affinity || 0, options: [] });
         setScreen(GameScreen.DIALOGUE);
+
+        // --- Async Image Generation ---
+        if (metNpcRef && !metNpcRef.imageUrl && metNpcRef.imagePrompt) {
+            geminiService.generateImage(metNpcRef.imagePrompt, false).then(async result => {
+                if (result.imageUrl) {
+                    setTransientDialogue(current => current ? { ...current, npcImageUrl: result.imageUrl } : null);
+                    const updatedChar = await fullyUpdateCharacter(newChar);
+                    const npcToUpdate = updatedChar.metNpcs.find(n => n.name === dialogue.npcName);
+                    if (npcToUpdate) npcToUpdate.imageUrl = result.imageUrl;
+                    setCharacter(updatedChar);
+                }
+            });
+        }
     }, [character]);
 
     const handleStartCombat = useCallback(async (isBoss: boolean = false, forcedBossName?: string) => {
@@ -539,7 +564,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 messages.push({ id: crypto.randomUUID(), text: event.log, type: LogType.NARRATIVE, sources: event.groundingSources });
                 if (event.type === 'ENEMY') setTimeout(() => handleStartCombat(false), 1500);
                 else if (event.type === 'BOSS') setTimeout(() => handleStartCombat(true), 1500);
-                else if (event.type === 'NPC') handleOpenTransientDialogue(event.dialogue);
+                else if (event.type === 'NPC') handleOpenTransientDialogue(event.dialogue, event.npcDetails.imagePrompt);
                 else if (event.type === 'ITEM') newCharacter.inventory.push(event.item);
             } catch(e) { console.error(e); }
         }
@@ -572,7 +597,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 
                 if (event.type === 'ENEMY') setTimeout(() => handleStartCombat(false), 1500);
                 else if (event.type === 'BOSS') setTimeout(() => handleStartCombat(true), 1500);
-                else if (event.type === 'NPC') handleOpenTransientDialogue(event.dialogue);
+                else if (event.type === 'NPC') handleOpenTransientDialogue(event.dialogue, event.npcDetails.imagePrompt);
                 else if (event.type === 'ITEM') newChar.inventory.push(event.item);
             } catch(e) { console.error(e); }
         }
@@ -646,11 +671,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         let newWorldState = JSON.parse(JSON.stringify(worldState));
         let poiInNewState = newWorldState.pois.find((p: Poi) => p.id === poiId)!;
         let newChar = { ...character };
+        let metNpcRef: MetNpcInfo | undefined;
 
         if (!poiInNewState.dialogue) {
             try {
                 const faction = newWorldState.factions.find((f: Faction) => f.id === poiInNewState.factionId);
-                const { name, role } = await geminiService.generateNpcDetails(poi, faction, newWorldState);
+                const { name, role, imagePrompt } = await geminiService.generateNpcDetails(poi, faction, newWorldState);
                 
                 poiInNewState.dialogue = {
                     npcName: name, npcRole: role, npcImageUrl: undefined,
@@ -661,21 +687,43 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                 const npcExists = newChar.metNpcs.some(npc => npc.name === name);
                 if (!npcExists) {
-                    newChar.metNpcs.push({
-                        name: name,
-                        role: role,
-                        factionName: faction?.name,
-                        affinity: character.npcAffinity[name] || 0,
-                        imageUrl: undefined,
-                    });
+                    metNpcRef = {
+                        name: name, role: role, factionName: faction?.name, affinity: 0,
+                        imageUrl: undefined, imagePrompt: imagePrompt,
+                    };
+                    newChar.metNpcs.push(metNpcRef);
+                } else {
+                    metNpcRef = newChar.metNpcs.find(npc => npc.name === name);
+                    if (metNpcRef && !metNpcRef.imagePrompt) metNpcRef.imagePrompt = imagePrompt;
                 }
             } catch (e) { console.error("Failed to init dialogue", e); return; }
+        } else {
+             metNpcRef = newChar.metNpcs.find(npc => npc.name === poiInNewState.dialogue!.npcName);
         }
         
         setWorldState(newWorldState);
         setCharacter(await fullyUpdateCharacter(newChar));
         setActivePoiIdForDialogue(poiId);
         setScreen(GameScreen.DIALOGUE);
+        
+        // --- Async Image Generation ---
+        if (metNpcRef && !metNpcRef.imageUrl && metNpcRef.imagePrompt) {
+            geminiService.generateImage(metNpcRef.imagePrompt, false).then(async result => {
+                if(result.imageUrl) {
+                    setWorldState(current => {
+                        const ws = JSON.parse(JSON.stringify(current));
+                        const poiToUpdate = ws.pois.find((p: Poi) => p.id === poiId);
+                        if(poiToUpdate && poiToUpdate.dialogue) poiToUpdate.dialogue.npcImageUrl = result.imageUrl;
+                        return ws;
+                    });
+                    const updatedChar = await fullyUpdateCharacter(newChar);
+                    const npcToUpdate = updatedChar.metNpcs.find(n => n.name === metNpcRef!.name);
+                    if(npcToUpdate) npcToUpdate.imageUrl = result.imageUrl;
+                    setCharacter(updatedChar);
+                }
+            });
+        }
+
     }, [worldState, character]);
 
     const handleCloseDialogue = useCallback(() => {
@@ -1017,306 +1065,270 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const newItem: Item = {
             ...storeItem.item,
             id: crypto.randomUUID(),
+            upgradeLevel: 0,
+            maxUpgrade: RARITY_DATA[storeItem.item.rarity as Rarity]?.maxUpgrade || 5,
             history: [],
             evolved: false,
-            upgradeLevel: 0,
+            cultivationTechniqueDetails: storeItem.item.cultivationTechniqueDetails 
+                ? { ...storeItem.item.cultivationTechniqueDetails, level: 1 } 
+                : undefined,
         };
         newChar.inventory.push(newItem);
         setCharacter(await fullyUpdateCharacter(newChar));
-        return { message: `Đổi thành công [${newItem.name}]!` };
-    }, [character]);
-
-    const handleAllocateStatPoint = useCallback(async (stat: Stat) => {
-        if (!character || (character.unallocatedStatPoints || 0) <= 0) return;
-
-        const newChar = { ...character };
-        newChar.unallocatedStatPoints = (newChar.unallocatedStatPoints || 1) - 1;
-        newChar.baseStats[stat as keyof BaseStats] += 1;
-        
-        const finalChar = await fullyUpdateCharacter(newChar);
-        setCharacter(finalChar);
+        return { message: `Bạn đã đổi thành công [${newItem.name}]!` };
     }, [character]);
     
-    const handleCraftTalisman = useCallback(async (): Promise<{ success: boolean; message: string; }> => {
-        if (!character) return { success: false, message: "Nhân vật không tồn tại." };
+    // Functions to implement for GameContextType
+    const handleAllocateStatPoint = useCallback(async (stat: Stat) => {
+        if (!character || (character.unallocatedStatPoints || 0) < 1) return;
 
-        const TALISMAN_CRAFT_COST = {
-            [UpgradeMaterial.LINH_HON_THACH]: 1,
-            [UpgradeMaterial.TINH_THACH_HA_PHAM]: 5,
-            MP: 50
-        };
+        const newChar = { ...character };
+        newChar.unallocatedStatPoints = (newChar.unallocatedStatPoints || 0) - 1;
+        
+        const classDef = { ...(newChar.classDefinition || {}) };
+        classDef[stat] = (classDef[stat] || 0) + 1;
+        newChar.classDefinition = classDef as BaseStats;
 
-        const hasLinhHonThach = (character.materials[UpgradeMaterial.LINH_HON_THACH] || 0) >= TALISMAN_CRAFT_COST[UpgradeMaterial.LINH_HON_THACH];
-        const hasTinhThach = (character.materials[UpgradeMaterial.TINH_THACH_HA_PHAM] || 0) >= TALISMAN_CRAFT_COST[UpgradeMaterial.TINH_THACH_HA_PHAM];
-        const hasMp = character.currentMp >= TALISMAN_CRAFT_COST.MP;
+        setCharacter(await fullyUpdateCharacter(newChar));
+    }, [character]);
 
-        if (!hasLinhHonThach || !hasTinhThach || !hasMp) {
-            return { success: false, message: "Không đủ nguyên liệu hoặc linh lực." };
+    const handleCraftTalisman = useCallback(async (): Promise<{ success: boolean, message: string }> => {
+        if (!character) return { success: false, message: 'Character not found.' };
+        
+        const cost = { [UpgradeMaterial.LINH_HON_THACH]: 1, [UpgradeMaterial.TINH_THACH_HA_PHAM]: 5, MP: 50 };
+
+        if ((character.materials[UpgradeMaterial.LINH_HON_THACH] || 0) < cost[UpgradeMaterial.LINH_HON_THACH] ||
+            (character.materials[UpgradeMaterial.TINH_THACH_HA_PHAM] || 0) < cost[UpgradeMaterial.TINH_THACH_HA_PHAM] ||
+            character.currentMp < cost.MP) {
+            return { success: false, message: "Không đủ nguyên liệu hoặc MP." };
         }
 
         const newChar = { ...character };
-        newChar.materials[UpgradeMaterial.LINH_HON_THACH] = (newChar.materials[UpgradeMaterial.LINH_HON_THACH] || 0) - TALISMAN_CRAFT_COST[UpgradeMaterial.LINH_HON_THACH];
-        newChar.materials[UpgradeMaterial.TINH_THACH_HA_PHAM] = (newChar.materials[UpgradeMaterial.TINH_THACH_HA_PHAM] || 0) - TALISMAN_CRAFT_COST[UpgradeMaterial.TINH_THACH_HA_PHAM];
-        newChar.currentMp -= TALISMAN_CRAFT_COST.MP;
+        newChar.materials[UpgradeMaterial.LINH_HON_THACH] = (newChar.materials[UpgradeMaterial.LINH_HON_THACH] || 0) - cost[UpgradeMaterial.LINH_HON_THACH];
+        newChar.materials[UpgradeMaterial.TINH_THACH_HA_PHAM] = (newChar.materials[UpgradeMaterial.TINH_THACH_HA_PHAM] || 0) - cost[UpgradeMaterial.TINH_THACH_HA_PHAM];
+        newChar.currentMp -= cost.MP;
         newChar.consumables[UpgradeConsumable.LINH_THU_PHU] = (newChar.consumables[UpgradeConsumable.LINH_THU_PHU] || 0) + 1;
-        
-        setCharacter(await fullyUpdateCharacter(newChar));
-        return { success: true, message: `Chế tạo thành công 1x ${UpgradeConsumable.LINH_THU_PHU}!` };
 
+        setCharacter(await fullyUpdateCharacter(newChar));
+        return { success: true, message: "Chế tạo thành công 1x Linh Thú Phù!" };
+    }, [character]);
+    
+    const handleCraftHonAnPhu = useCallback(async (): Promise<{ success: boolean, message: string }> => {
+        if (!character) return { success: false, message: 'Character not found.' };
+        
+        const cost = { [UpgradeMaterial.LINH_HON_THACH]: 2, [UpgradeMaterial.TINH_THACH_TRUNG_PHAM]: 5, MP: 100 };
+
+        if ((character.materials[UpgradeMaterial.LINH_HON_THACH] || 0) < cost[UpgradeMaterial.LINH_HON_THACH] ||
+            (character.materials[UpgradeMaterial.TINH_THACH_TRUNG_PHAM] || 0) < cost[UpgradeMaterial.TINH_THACH_TRUNG_PHAM] ||
+            character.currentMp < cost.MP) {
+            return { success: false, message: "Không đủ nguyên liệu hoặc MP." };
+        }
+
+        const newChar = { ...character };
+        newChar.materials[UpgradeMaterial.LINH_HON_THACH] = (newChar.materials[UpgradeMaterial.LINH_HON_THACH] || 0) - cost[UpgradeMaterial.LINH_HON_THACH];
+        newChar.materials[UpgradeMaterial.TINH_THACH_TRUNG_PHAM] = (newChar.materials[UpgradeMaterial.TINH_THACH_TRUNG_PHAM] || 0) - cost[UpgradeMaterial.TINH_THACH_TRUNG_PHAM];
+        newChar.currentMp -= cost.MP;
+        newChar.consumables[UpgradeConsumable.HON_AN_PHU] = (newChar.consumables[UpgradeConsumable.HON_AN_PHU] || 0) + 1;
+
+        setCharacter(await fullyUpdateCharacter(newChar));
+        return { success: true, message: "Chế tạo thành công 1x Hồn Ấn Phù!" };
     }, [character]);
 
-    const handleDesignWorldComplete = useCallback((analysisResults: any, summary: { prompt: string; keywords: string; }, storyInfo?: { title: string; author: string; }) => {
-        setDesignedWorldPrompt(summary);
-        setDesignedWorldStoryInfo(storyInfo || null);
-        setScreen(GameScreen.CREATOR);
-    }, []);
+    const handleCatchPet = useCallback(async (): Promise<{ success: boolean; message: string; }> => {
+        if (!character || !enemy || (character.consumables[UpgradeConsumable.LINH_THU_PHU] || 0) < 1) {
+            return { success: false, message: "Không thể thu phục." };
+        }
+        
+        const newChar = { ...character };
+        newChar.consumables[UpgradeConsumable.LINH_THU_PHU] = (newChar.consumables[UpgradeConsumable.LINH_THU_PHU] || 0) - 1;
+        
+        const hpPercent = enemy.currentHp / enemy.derivedStats.HP;
+        const levelDiff = character.level - enemy.level;
+        const catchChance = 10 + (1 - hpPercent) * 40 + levelDiff * 2;
+        
+        if (Math.random() * 100 < catchChance) {
+            const petData = convertMonsterToPet(enemy);
+            const petLoyaltyInfo = await geminiService.generateLoyaltyDescription(petData.name, petData.loyalty, petData.monsterClass);
+            const newPet: Pet = { ...petData, ...petLoyaltyInfo };
+            
+            newChar.pets.push(newPet);
+            if (!newChar.activePetId) {
+                newChar.activePetId = newPet.id;
+            }
+            setCharacter(await fullyUpdateCharacter(newChar));
+            
+            handleCombatEnd(true, newChar, newChar.pets.find(p => p.id === newChar.activePetId) || null, 0, [], {});
+            
+            return { success: true, message: `Thu phục thành công ${enemy.name}!` };
+        } else {
+            setCharacter(await fullyUpdateCharacter(newChar));
+            return { success: false, message: `Thu phục thất bại! ${enemy.name} đã chống cự.` };
+        }
+    }, [character, enemy, handleCombatEnd]);
+
+    const handleEnslaveTarget = useCallback(async (): Promise<{ success: boolean, message: string }> => {
+        if (!character || !enemy || !enemy.isHumanoid || (character.consumables[UpgradeConsumable.HON_AN_PHU] || 0) < 1) {
+            return { success: false, message: "Không thể nô dịch." };
+        }
+        
+        const newChar = { ...character };
+        newChar.consumables[UpgradeConsumable.HON_AN_PHU] = (newChar.consumables[UpgradeConsumable.HON_AN_PHU] || 0) - 1;
+        
+        const hpPercent = enemy.currentHp / enemy.derivedStats.HP;
+        const enslaveChance = 50 + (0.2 - hpPercent) * 100;
+        
+        if (Math.random() * 100 < enslaveChance) {
+            const newServant = convertEnemyToServant(enemy);
+            newChar.servants.push(newServant);
+            setCharacter(await fullyUpdateCharacter(newChar));
+            
+            handleCombatEnd(true, newChar, null, 0, [], {});
+            return { success: true, message: `Nô dịch thành công ${enemy.name}!` };
+        } else {
+            setCharacter(await fullyUpdateCharacter(newChar));
+            return { success: false, message: `${enemy.name} đã chống cự lại Hồn Ấn!` };
+        }
+    }, [character, enemy, handleCombatEnd]);
 
     const handleEquipItem = useCallback(async (itemToEquip: Item) => {
         if (!character) return;
-        const newCharacter = JSON.parse(JSON.stringify(character));
-        const currentEquipped = newCharacter.equipment[itemToEquip.type];
-        const inventoryWithoutItem = newCharacter.inventory.filter((i: Item) => i.id !== itemToEquip.id);
+        const newChar = { ...character };
+        const itemType = itemToEquip.type;
         
-        if (currentEquipped) {
-            inventoryWithoutItem.push(currentEquipped);
+        const inventoryIndex = newChar.inventory.findIndex(i => i.id === itemToEquip.id);
+        if (inventoryIndex === -1) return;
+        newChar.inventory.splice(inventoryIndex, 1);
+
+        const currentlyEquipped = newChar.equipment[itemType];
+        if (currentlyEquipped) {
+            newChar.inventory.push(currentlyEquipped);
         }
+
+        newChar.equipment[itemType] = itemToEquip;
         
-        newCharacter.equipment[itemToEquip.type] = itemToEquip;
-        newCharacter.inventory = inventoryWithoutItem;
-        
-        setCharacter(await fullyUpdateCharacter(newCharacter));
+        setCharacter(await fullyUpdateCharacter(newChar));
     }, [character]);
 
     const handleUnequipItem = useCallback(async (itemType: ItemType) => {
         if (!character) return;
-        const newCharacter = JSON.parse(JSON.stringify(character));
-        const itemToUnequip = newCharacter.equipment[itemType];
-        if (itemToUnequip) {
-            delete newCharacter.equipment[itemType];
-            newCharacter.inventory.push(itemToUnequip);
-            setCharacter(await fullyUpdateCharacter(newCharacter));
-        }
-    }, [character]);
-    
-    // Pet actions
-    const handleSetActivePet = useCallback(async (petId: string | null) => {
-        if (!character) return;
+        const itemToUnequip = character.equipment[itemType];
+        if (!itemToUnequip) return;
+
         const newChar = { ...character };
-        newChar.pets = newChar.pets.map(p => ({ ...p, status: p.id === petId ? PetStatus.FOLLOWING : PetStatus.IDLE }));
-        newChar.activePetId = petId;
+        delete newChar.equipment[itemType];
+        newChar.inventory.push(itemToUnequip);
+        
         setCharacter(await fullyUpdateCharacter(newChar));
     }, [character]);
-
-    const handleRenamePet = useCallback(async (petId: string, newName: string) => {
-        if (!character) return;
-        const newChar = { ...character };
-        const petIndex = newChar.pets.findIndex(p => p.id === petId);
-        if (petIndex > -1) {
-            newChar.pets[petIndex].name = newName;
-            setCharacter(await fullyUpdateCharacter(newChar));
-        }
-    }, [character]);
-
-    const handleReleasePet = useCallback(async (petId: string) => {
-        if (!character) return;
-        if (!window.confirm("Bạn có chắc muốn thả thú cưng này về tự nhiên không?")) return;
-        
-        const newChar = { ...character };
-        newChar.pets = newChar.pets.filter(p => p.id !== petId);
-        if (newChar.activePetId === petId) {
-            newChar.activePetId = null;
-        }
-        setCharacter(await fullyUpdateCharacter(newChar));
-    }, [character]);
-    
-    const handleFeedPet = useCallback(async (petId: string) => {
-        if (!character) throw new Error("Character not found.");
-        if ((character.consumables[UpgradeConsumable.LINH_THU_THUC] || 0) < 1) {
-            throw new Error("Không đủ Linh Thú Thực.");
-        }
-        
-        const newChar = { ...character };
-        const petIndex = newChar.pets.findIndex(p => p.id === petId);
-        if (petIndex > -1) {
-            newChar.consumables[UpgradeConsumable.LINH_THU_THUC]! -= 1;
-            const pet = { ...newChar.pets[petIndex] };
-            const loyaltyGain = Math.floor(Math.random() * 5) + 1;
-            pet.loyalty = Math.min(100, pet.loyalty + loyaltyGain);
-            
-            try {
-                const loyaltyDesc = await geminiService.generateLoyaltyDescription(pet.name, pet.loyalty, pet.monsterClass);
-                pet.loyaltyDescription = loyaltyDesc.description;
-                pet.oneWordStatus = loyaltyDesc.oneWordStatus;
-            } catch(e) { console.error("Failed to generate loyalty description", e); }
-
-            newChar.pets[petIndex] = pet;
-            setCharacter(await fullyUpdateCharacter(newChar));
-            setOneTimeMessages([{id: crypto.randomUUID(), text: `Bạn cho ${pet.name} ăn. Độ trung thành tăng lên ${loyaltyGain}!`, type: LogType.SYSTEM}]);
-        }
-    }, [character]);
-
-    const handleEvolvePet = useCallback(async (petId: string) => {
-        if (!character) throw new Error("Character not found.");
-        const petToEvolve = character.pets.find(p => p.id === petId);
-        if (!petToEvolve) throw new Error("Pet not found.");
-        if (petToEvolve.isEvolved) throw new Error("Pet has already evolved.");
-        if (petToEvolve.level < PET_EVOLUTION_LEVEL) throw new Error(`Pet must be at least level ${PET_EVOLUTION_LEVEL}.`);
-        
-        const newChar = { ...character };
-        for (const [mat, cost] of Object.entries(PET_EVOLUTION_COST)) {
-            if ((newChar.materials[mat as UpgradeMaterial] || 0) < cost) {
-                throw new Error(`Not enough ${mat}.`);
-            }
-            newChar.materials[mat as UpgradeMaterial]! -= cost;
-        }
-
-        const petIndex = newChar.pets.findIndex(p => p.id === petId);
-        let pet = { ...newChar.pets[petIndex] };
-
-        try {
-            const evoDetails = await geminiService.generatePetEvolutionDetails(pet);
-            
-            pet.name = evoDetails.newName;
-            pet.isEvolved = true;
-            pet.evolutionLevel = (pet.evolutionLevel || 0) + 1;
-            Object.entries(evoDetails.statBoosts).forEach(([stat, boost]) => {
-                if (boost) {
-                  pet.baseStats[stat as keyof BaseStats] += boost;
-                }
-            });
-            const newSkill: Skill = {
-                ...evoDetails.newPassiveSkill,
-                id: crypto.randomUUID(),
-                class: pet.monsterClass,
-            };
-            pet.skills.push(newSkill);
-
-            pet = fullyUpdatePet(pet);
-            newChar.pets[petIndex] = pet;
-            setCharacter(await fullyUpdateCharacter(newChar));
-            setOneTimeMessages([{id: crypto.randomUUID(), text: `🌟 ${petToEvolve.name} tiến hóa thành ${pet.name}! Nó đã học được kỹ năng mới: [${newSkill.name}]!`, type: LogType.SYSTEM}]);
-        } catch (e) {
-            console.error(e);
-            throw new Error(`Pet evolution failed: ${e instanceof Error ? e.message : String(e)}`);
-        }
-    }, [character]);
-
-    const handleCatchPet = useCallback(async (): Promise<{ success: boolean; message: string; }> => {
-        if (!character || !enemy) return { success: false, message: "Invalid state for catching pet." };
-        if ((character.consumables[UpgradeConsumable.LINH_THU_PHU] || 0) < 1) {
-            return { success: false, message: "Không có Linh Thú Phù!" };
-        }
-
-        const newChar = { ...character };
-        newChar.consumables[UpgradeConsumable.LINH_THU_PHU]! -= 1;
-
-        const healthPercent = (enemy.currentHp / enemy.derivedStats.HP);
-        const levelDifference = enemy.level - character.level;
-        let baseCatchRate = 50; // 50% base rate
-        baseCatchRate -= healthPercent * 40; // up to 40% reduction for full health
-        baseCatchRate -= levelDifference * 3; // 3% reduction per level higher
-        const finalCatchRate = Math.max(5, Math.min(95, baseCatchRate));
-
-        if (Math.random() * 100 < finalCatchRate) {
-            const petData = convertMonsterToPet(enemy);
-            const loyaltyDesc = await geminiService.generateLoyaltyDescription(petData.name, petData.loyalty, petData.monsterClass);
-            const newPet: Pet = { ...petData, loyaltyDescription: loyaltyDesc.description, oneWordStatus: loyaltyDesc.oneWordStatus };
-
-            newChar.pets.push(newPet);
-            setCharacter(await fullyUpdateCharacter(newChar));
-            setEnemy(null);
-            setScreen(GameScreen.WORLD);
-            setOneTimeMessages([{id: crypto.randomUUID(), text: `Thu phục thành công! ${enemy.name} đã trở thành thú cưng của bạn.`, type: LogType.SYSTEM}]);
-            return { success: true, message: `Thu phục thành công! ${enemy.name} đã trở thành thú cưng của bạn.` };
-        } else {
-            setCharacter(await fullyUpdateCharacter(newChar));
-            return { success: false, message: `${enemy.name} đã phá vỡ Linh Thú Phù và thoát ra!` };
-        }
-    }, [character, enemy]);
-
-    const handleEnslaveTarget = useCallback(async (): Promise<{ success: boolean; message: string; }> => {
-        if (!character || !enemy) return { success: false, message: "Trạng thái không hợp lệ." };
-        if ((character.consumables[UpgradeConsumable.HON_AN_PHU] || 0) < 1) {
-            return { success: false, message: "Không có Hồn Ấn Phù!" };
-        }
-
-        const newChar = { ...character };
-        newChar.consumables[UpgradeConsumable.HON_AN_PHU]! -= 1;
-        
-        const healthPercent = (enemy.currentHp / enemy.derivedStats.HP);
-        if (!enemy.isHumanoid || healthPercent > 0.2) {
-            setCharacter(await fullyUpdateCharacter(newChar));
-            return { success: false, message: "Mục tiêu không phù hợp hoặc còn quá mạnh." };
-        }
-
-        const levelDifference = enemy.level - character.level;
-        let baseSuccessRate = 40; // 40% base rate
-        baseSuccessRate -= healthPercent * 30; // up to 6% reduction
-        baseSuccessRate -= levelDifference * 2; // 2% reduction per level higher
-        const finalSuccessRate = Math.max(5, Math.min(95, baseSuccessRate));
-
-        if (Math.random() * 100 < finalSuccessRate) {
-            const newServant: Servant = convertEnemyToServant(enemy);
-            newChar.servants.push(newServant);
-
-            setCharacter(await fullyUpdateCharacter(newChar));
-            setEnemy(null);
-            setScreen(GameScreen.WORLD);
-            setOneTimeMessages([{id: crypto.randomUUID(), text: `Nô Dịch thành công! ${enemy.name} đã quy phục.`, type: LogType.SYSTEM}]);
-            return { success: true, message: `Nô Dịch thành công! ${enemy.name} đã quy phục.` };
-        } else {
-            setCharacter(await fullyUpdateCharacter(newChar));
-            return { success: false, message: `${enemy.name} đã chống cự lại Hồn Ấn Phù!` };
-        }
-    }, [character, enemy]);
 
     const handleSetActiveRetainer = useCallback(async (retainerId: string | null) => {
         if (!character) return;
-        const newChar = { ...character, activeRetainerId: retainerId };
-        setCharacter(await fullyUpdateCharacter(newChar));
-    }, [character]);
-
+        setOneTimeMessages([{ id: crypto.randomUUID(), text: "Tính năng Thị Vệ đang được phát triển.", type: LogType.SYSTEM }]);
+    }, [character, setOneTimeMessages]);
+    
     const handleAssignServantTask = useCallback(async (servantId: string, task: ServantTask) => {
         if (!character) return;
-        const newChar = { ...character };
-        const servantIndex = newChar.servants.findIndex(s => s.id === servantId);
-        if (servantIndex > -1) {
-            newChar.servants[servantIndex].task = task;
-            const finalChar = await fullyUpdateCharacter(newChar);
-            setCharacter(finalChar);
-            setOneTimeMessages([{id: crypto.randomUUID(), text: `${newChar.servants[servantIndex].name} đã bắt đầu nhiệm vụ ${task}.`, type: LogType.SYSTEM}]);
-        }
+        const newServants = character.servants.map(s => s.id === servantId ? { ...s, task } : s);
+        setCharacter(await fullyUpdateCharacter({ ...character, servants: newServants }));
+    }, [character]);
+
+    const handleSetActivePet = useCallback(async (petId: string | null) => {
+        if (!character) return;
+        setCharacter(await fullyUpdateCharacter({ ...character, activePetId: petId }));
     }, [character]);
     
-    const handleCraftHonAnPhu = useCallback(async (): Promise<{ success: boolean; message: string; }> => {
-        if (!character) return { success: false, message: "Nhân vật không tồn tại." };
-
-        const CRAFT_COST = {
-            [UpgradeMaterial.LINH_HON_THACH]: 2,
-            [UpgradeMaterial.TINH_THACH_TRUNG_PHAM]: 5,
-            MP: 100
-        };
-
-        const hasLinhHonThach = (character.materials[UpgradeMaterial.LINH_HON_THACH] || 0) >= CRAFT_COST[UpgradeMaterial.LINH_HON_THACH];
-        const hasTinhThach = (character.materials[UpgradeMaterial.TINH_THACH_TRUNG_PHAM] || 0) >= CRAFT_COST[UpgradeMaterial.TINH_THACH_TRUNG_PHAM];
-        const hasMp = character.currentMp >= CRAFT_COST.MP;
-
-        if (!hasLinhHonThach || !hasTinhThach || !hasMp) {
-            return { success: false, message: "Không đủ nguyên liệu hoặc linh lực." };
-        }
-
-        const newChar = { ...character };
-        newChar.materials[UpgradeMaterial.LINH_HON_THACH] = (newChar.materials[UpgradeMaterial.LINH_HON_THACH] || 0) - CRAFT_COST[UpgradeMaterial.LINH_HON_THACH];
-        newChar.materials[UpgradeMaterial.TINH_THACH_TRUNG_PHAM] = (newChar.materials[UpgradeMaterial.TINH_THACH_TRUNG_PHAM] || 0) - CRAFT_COST[UpgradeMaterial.TINH_THACH_TRUNG_PHAM];
-        newChar.currentMp -= CRAFT_COST.MP;
-        newChar.consumables[UpgradeConsumable.HON_AN_PHU] = (newChar.consumables[UpgradeConsumable.HON_AN_PHU] || 0) + 1;
-        
-        setCharacter(await fullyUpdateCharacter(newChar));
-        return { success: true, message: `Chế tạo thành công 1x ${UpgradeConsumable.HON_AN_PHU}!` };
-
+    const handleRenamePet = useCallback(async (petId: string, newName: string) => {
+        if (!character) return;
+        const newPets = character.pets.map(p => p.id === petId ? { ...p, name: newName } : p);
+        setCharacter(await fullyUpdateCharacter({ ...character, pets: newPets }));
     }, [character]);
+    
+    const handleReleasePet = useCallback(async (petId: string) => {
+        if (!character || !window.confirm("Bạn có chắc muốn thả thú cưng này?")) return;
+        let newActivePetId = character.activePetId;
+        if (character.activePetId === petId) {
+            newActivePetId = null;
+        }
+        const newPets = character.pets.filter(p => p.id !== petId);
+        setCharacter(await fullyUpdateCharacter({ ...character, pets: newPets, activePetId: newActivePetId }));
+        setSelectedPetId(null);
+    }, [character]);
+    
+    const handleFeedPet = useCallback(async (petId: string) => {
+        if (!character || (character.consumables[UpgradeConsumable.LINH_THU_THUC] || 0) < 1) {
+             throw new Error("Không đủ Linh Thú Thực.");
+        }
+        
+        const newChar = { ...character };
+        const petIndex = newChar.pets.findIndex(p => p.id === petId);
+        if (petIndex === -1) throw new Error("Không tìm thấy thú cưng.");
+        
+        newChar.consumables[UpgradeConsumable.LINH_THU_THUC] = (newChar.consumables[UpgradeConsumable.LINH_THU_THUC] || 0) - 1;
+        
+        const pet = { ...newChar.pets[petIndex] };
+        const loyaltyGain = 5 + Math.floor(Math.random() * 6);
+        pet.loyalty = Math.min(100, pet.loyalty + loyaltyGain);
+        
+        const loyaltyInfo = await geminiService.generateLoyaltyDescription(pet.name, pet.loyalty, pet.monsterClass);
+        pet.loyaltyDescription = loyaltyInfo.description;
+        pet.oneWordStatus = loyaltyInfo.oneWordStatus;
+        
+        newChar.pets[petIndex] = pet;
+        setCharacter(await fullyUpdateCharacter(newChar));
+        setOneTimeMessages([{id: crypto.randomUUID(), text: `Bạn đã cho ${pet.name} ăn. Độ trung thành +${loyaltyGain}.`, type: LogType.SYSTEM}]);
+    }, [character, setOneTimeMessages]);
+    
+    const handleEvolvePet = useCallback(async (petId: string) => {
+        if (!character) throw new Error("Nhân vật không tồn tại.");
+        const pet = character.pets.find(p => p.id === petId);
+        if (!pet) throw new Error("Không tìm thấy thú cưng.");
+        if (pet.level < PET_EVOLUTION_LEVEL || pet.isEvolved) throw new Error("Thú cưng không đủ điều kiện tiến hóa.");
 
-    // Dungeon actions
+        for (const [mat, cost] of Object.entries(PET_EVOLUTION_COST)) {
+            if ((character.materials[mat as UpgradeMaterial] || 0) < cost) {
+                throw new Error(`Không đủ nguyên liệu: ${mat}.`);
+            }
+        }
+        
+        const newChar = { ...character };
+        for (const [mat, cost] of Object.entries(PET_EVOLUTION_COST)) {
+            newChar.materials[mat as UpgradeMaterial] = (newChar.materials[mat as UpgradeMaterial] || 0) - cost;
+        }
+        
+        const evolutionDetails = await geminiService.generatePetEvolutionDetails(pet);
+        
+        const petIndex = newChar.pets.findIndex(p => p.id === petId);
+        let evolvedPet = { ...newChar.pets[petIndex] };
+        
+        evolvedPet.name = evolutionDetails.newName;
+        evolvedPet.isEvolved = true;
+        evolvedPet.evolutionLevel = 1;
+        
+        Object.entries(evolutionDetails.statBoosts).forEach(([stat, value]) => {
+            if(stat in evolvedPet.baseStats) {
+                 (evolvedPet.baseStats as any)[stat] += value;
+            }
+        });
+        
+        const newSkill: Skill = {
+            ...evolutionDetails.newPassiveSkill,
+            id: crypto.randomUUID(),
+            class: evolvedPet.monsterClass,
+        };
+        evolvedPet.skills.push(newSkill);
+        
+        if (evolutionDetails.newImagePrompt) {
+            const imageResult = await geminiService.generateImage(evolutionDetails.newImagePrompt, false);
+            if (imageResult.imageUrl) {
+                evolvedPet.imageUrl = imageResult.imageUrl;
+            }
+        }
+        
+        newChar.pets[petIndex] = fullyUpdatePet(evolvedPet);
+        setCharacter(await fullyUpdateCharacter(newChar));
+        setOneTimeMessages([{id: crypto.randomUUID(), text: `${pet.name} đã tiến hóa thành ${evolvedPet.name}!`, type: LogType.SYSTEM}]);
+    }, [character, setOneTimeMessages]);
+
     const handleEnterDungeon = useCallback(async (poiId: number) => {
         if (!character) return;
         const poi = worldState.pois.find(p => p.id === poiId);
@@ -1327,8 +1339,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (!dungeon) {
             try {
-                const theme = `Dungeon near ${poi.name} in ${poi.region}`;
-                const dungeonDetails = await geminiService.generateDungeonDetails(character, theme);
+                const dungeonDetails = await geminiService.generateDungeonDetails(character, poi.name || 'Bí Cảnh Vô Danh');
                 dungeon = {
                     ...dungeonDetails,
                     id: poi.dungeonId,
@@ -1336,150 +1347,88 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     isCleared: false,
                 };
                 newWorldState.dungeons.push(dungeon);
-            } catch(e) {
+            } catch (e) {
                 console.error("Failed to generate dungeon", e);
-                setOneTimeMessages([{id: crypto.randomUUID(), text: "Không thể tiến vào Bí Cảnh lúc này.", type: LogType.SYSTEM}]);
+                setOneTimeMessages([{ id: crypto.randomUUID(), text: 'Không thể tiến vào Bí Cảnh lúc này.', type: LogType.ERROR }]);
                 return;
             }
         }
-
-        const newChar = { ...character, currentDungeonId: poi.dungeonId };
+        
+        const newChar = { ...character, currentDungeonId: dungeon.id };
         setCharacter(await fullyUpdateCharacter(newChar));
         setWorldState(newWorldState);
         setScreen(GameScreen.DUNGEON);
-    }, [character, worldState]);
-
+    }, [character, worldState, setOneTimeMessages]);
+    
     const handleProceedInDungeon = useCallback(async () => {
         if (!character || !character.currentDungeonId) return;
         const dungeon = worldState.dungeons.find(d => d.id === character.currentDungeonId);
         if (!dungeon) return;
-
+        
         const currentFloor = dungeon.floors[dungeon.currentFloorIndex];
-        const newDungeon = { ...dungeon };
-
+        
         switch (currentFloor.type) {
             case DungeonFloorType.COMBAT:
-                handleStartCombat(false);
-                break;
             case DungeonFloorType.ELITE_COMBAT:
-                const elite = await createMonster(dungeon.level, imageLibrary, appSettings.difficulty, worldState, character.position, { forcedRank: MonsterRank.TinhAnh, fixedLevel: dungeon.level + 2 });
-                setEnemy(elite);
-                setScreen(GameScreen.COMBAT);
-                break;
             case DungeonFloorType.BOSS:
-                 const boss = await createMonster(dungeon.level, imageLibrary, appSettings.difficulty, worldState, character.position, { forcedRank: MonsterRank.ThủLĩnh, fixedLevel: dungeon.level + 5 });
-                setEnemy(boss);
-                setScreen(GameScreen.COMBAT);
+                await handleStartCombat(currentFloor.type === DungeonFloorType.BOSS);
                 break;
             case DungeonFloorType.TREASURE:
-                const item = await generateItem(dungeon.level, character);
-                const newChar = { ...character };
-                newChar.inventory.push(item);
-                setCharacter(await fullyUpdateCharacter(newChar));
-                setOneTimeMessages([{id: crypto.randomUUID(), text: `Bạn tìm thấy một rương báu và nhận được [${item.name}]!`, type: LogType.LOOT}]);
+                const item = await generateItem(character.level, character, Rarity.RARE);
+                const newChar = { ...character, inventory: [...character.inventory, item] };
+                const newDungeon = { ...dungeon };
                 newDungeon.floors[dungeon.currentFloorIndex].isCompleted = true;
-                if (dungeon.currentFloorIndex < dungeon.floors.length - 1) newDungeon.currentFloorIndex++;
-                setWorldState({...worldState, dungeons: worldState.dungeons.map(d => d.id === dungeon.id ? newDungeon : d)});
+                if (dungeon.currentFloorIndex < dungeon.floors.length - 1) {
+                    newDungeon.currentFloorIndex++;
+                }
+                const newWorld = { ...worldState, dungeons: worldState.dungeons.map(d => d.id === dungeon.id ? newDungeon : d) };
+                
+                setCharacter(await fullyUpdateCharacter(newChar));
+                setWorldState(newWorld);
+                setOneTimeMessages([{id: crypto.randomUUID(), text: `Bạn tìm thấy một rương báu và nhận được [${item.name}]!`, type: LogType.LOOT}]);
                 break;
             case DungeonFloorType.EMPTY:
             default:
-                newDungeon.floors[dungeon.currentFloorIndex].isCompleted = true;
-                 if (dungeon.currentFloorIndex < dungeon.floors.length - 1) newDungeon.currentFloorIndex++;
-                setWorldState({...worldState, dungeons: worldState.dungeons.map(d => d.id === dungeon.id ? newDungeon : d)});
+                const nextDungeon = { ...dungeon };
+                nextDungeon.floors[dungeon.currentFloorIndex].isCompleted = true;
+                if (dungeon.currentFloorIndex < dungeon.floors.length - 1) {
+                    nextDungeon.currentFloorIndex++;
+                }
+                const nextWorld = { ...worldState, dungeons: worldState.dungeons.map(d => d.id === dungeon.id ? nextDungeon : d) };
+                setWorldState(nextWorld);
+                setOneTimeMessages([{id: crypto.randomUUID(), text: 'Căn phòng này trống rỗng.', type: LogType.NARRATIVE}]);
                 break;
         }
-    }, [character, worldState, appSettings.difficulty, imageLibrary, handleStartCombat]);
-
+    }, [character, worldState, handleStartCombat, setOneTimeMessages]);
+    
     const handleExitDungeon = useCallback(async (force = false) => {
-        if (!character) return;
-        if (!force && !window.confirm("Bạn có muốn rời khỏi Bí Cảnh không? Mọi tiến trình trong tầng hiện tại sẽ bị mất.")) return;
-
+        if (!character || !character.currentDungeonId) return;
+        if (!force && !window.confirm("Bạn có chắc muốn rời khỏi Bí Cảnh? Mọi tiến trình trong lần này sẽ bị mất.")) return;
+        
         const newChar = { ...character, currentDungeonId: null };
         setCharacter(await fullyUpdateCharacter(newChar));
         setScreen(GameScreen.WORLD);
     }, [character]);
 
     const value: GameContextType = {
-        screen,
-        character,
-        enemy,
-        itemInForge,
-        initialForgeTab,
-        imageLibrary,
-        appSettings,
-        worldState,
-        saveSlots,
-        isFullscreen,
-        activePoiIdForDialogue,
-        transientDialogue,
-        oneTimeMessages,
-        designedWorldPrompt,
-        designedWorldStoryInfo,
-        contextualActions,
-        isGeneratingActions,
-        isQuickPlayLoading,
-        levelUpInfo,
-        clearLevelUpInfo,
-        setScreen,
-        handleCreateGame,
-        handleQuickPlay,
-        handleStartCombat,
-        handleCombatEnd,
-        handleOpenForge,
-        handleCloseForge,
-        handleUpgradeAttempt,
-        handleUpdateCharacterAndWorld,
-        handlePlayerMove,
-        handlePlayerRecover,
-        handleSaveGame,
-        handleLoadGame,
-        handleDeleteSave,
-        handleSettingsChange,
-        handleUpdateImageLibrary,
-        handleToggleFullscreen,
-        handleBackToMenu,
-        handleOpenImageLibrary,
-        handleOpenMenu,
-        handleStartNewGame,
-        refreshSaveSlots,
-        handleDiscoverPoi,
-        handleOpenDialogue,
-        handleCloseDialogue,
-        handleSendDialogueMessage,
-        handleForgeNewItem,
-        handleEnchantItem,
-        handleDismantleItem,
-        setOneTimeMessages,
-        handleOpenTransientDialogue,
-        handleContinueTransientDialogue,
-        handleLearnCultivationTechnique,
-        handleActivateCultivationTechnique,
-        handleLevelUpCultivationTechnique,
-        handleUseSkillBook,
-        handleJoinSectRequest,
-        handleRequestSectMission,
-        handleContributeItemToSect,
-        handleBuyFromSectStore,
-        handleDesignWorldComplete,
-        handleAllocateStatPoint,
-        handleCraftTalisman,
-        handleGenerateContextualActions,
-        handleCatchPet,
-        handleEquipItem,
-        handleUnequipItem,
-        handleDevQuickStart,
-        handleEnslaveTarget,
-        handleSetActiveRetainer,
-        handleAssignServantTask,
-        handleCraftHonAnPhu,
-        handleSetActivePet,
-        handleRenamePet,
-        handleReleasePet,
-        handleFeedPet,
-        handleEvolvePet,
-        handleEnterDungeon,
-        handleProceedInDungeon,
-        handleExitDungeon,
+        screen, character, enemy, itemInForge, initialForgeTab, imageLibrary, appSettings,
+        worldState, saveSlots, isFullscreen, activePoiIdForDialogue, transientDialogue, oneTimeMessages,
+        designedWorldPrompt, designedWorldStoryInfo, contextualActions, isGeneratingActions,
+        isQuickPlayLoading, levelUpInfo, clearLevelUpInfo, setScreen, handleCreateGame, handleQuickPlay,
+        handleStartCombat, handleCombatEnd, handleOpenForge, handleCloseForge, handleUpgradeAttempt,
+        handleUpdateCharacterAndWorld, handlePlayerMove, handlePlayerRecover, handleSaveGame,
+        handleLoadGame, handleDeleteSave, handleSettingsChange, handleUpdateImageLibrary,
+        handleToggleFullscreen, handleBackToMenu, handleOpenImageLibrary, handleOpenMenu,
+        handleStartNewGame, refreshSaveSlots, handleDiscoverPoi, handleOpenDialogue, handleCloseDialogue,
+        handleSendDialogueMessage, handleForgeNewItem, handleEnchantItem, handleDismantleItem,
+        setOneTimeMessages, handleOpenTransientDialogue, handleContinueTransientDialogue,
+        handleLearnCultivationTechnique, handleActivateCultivationTechnique, handleLevelUpCultivationTechnique,
+        handleUseSkillBook, handleJoinSectRequest, handleRequestSectMission, handleContributeItemToSect,
+        handleBuyFromSectStore, handleDesignWorldComplete, handleAllocateStatPoint, handleCraftTalisman,
+        handleGenerateContextualActions, handleCatchPet, handleEquipItem, handleUnequipItem, handleDevQuickStart,
+        handleEnslaveTarget, handleSetActiveRetainer, handleAssignServantTask, handleCraftHonAnPhu,
+        handleSetActivePet, handleRenamePet, handleReleasePet, handleFeedPet, handleEvolvePet,
+        handleEnterDungeon, handleProceedInDungeon, handleExitDungeon,
     };
 
     return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

@@ -1,6 +1,6 @@
 import { Character, PlayerClass, Stat, Realm, BaseStats, DerivedStats, Item, ItemType, Rarity, UpgradeMaterial, UpgradeConsumable, AttackResult, AffixId, SetBonus, Skill, SkillType, ImageLibraryItem, WorldState, TerrainType, Difficulty, ActiveEffect, SkillEffect, TargetType, SkillEffectType, Combatant, Pet, PetStatus, CultivationTechnique, Faction, MonsterRank, LinhCan, LinhCanQuality, Element, MonsterTemplate, Servant, ServantTask, CultivationTechniqueType } from '../types';
 import { REALMS, CLASS_STATS, RARITY_DATA, AVAILABLE_ITEM_TYPES, AVAILABLE_BONUS_STATS, ITEM_SETS, SKILLS, MAP_WIDTH, MAP_HEIGHT, TERRAIN_DATA, DIFFICULTY_MODIFIERS, MONSTER_RANK_MODIFIERS, LINH_CAN_QUALITIES, CUSTOM_CLASS_POINTS_PER_LEVEL } from '../constants';
-import { generateItemDetails, generateMonsterName, generateSkill, generateBonusStatsForItem, generateCultivationTechniqueDetails, generateSkillForSkillBook } from './geminiService';
+import { generateItemDetails, generateMonsterName, generateSkill, generateBonusStatsForItem, generateCultivationTechniqueDetails, generateSkillForSkillBook, generateImage } from './geminiService';
 import { BOSS_DEFINITIONS } from '../data/bossData';
 import { BOSS_SKILLS } from '../data/bossSkills';
 
@@ -501,6 +501,7 @@ export const createMonster = async (
     let name: string;
     let monsterClass: string;
     let imageUrl: string | undefined;
+    let imagePrompt: string | undefined;
     let originalName: string;
     let level: number;
     const monsterLinhCan = generateLinhCan();
@@ -525,6 +526,7 @@ export const createMonster = async (
         originalName = template.name;
         monsterClass = template.baseClass;
         imageUrl = template.imageUrl;
+        imagePrompt = template.imagePrompt;
         if (template.element && template.element !== Element.VO) {
             monsterLinhCan.elements = [template.element];
         }
@@ -537,10 +539,10 @@ export const createMonster = async (
 
         if (monsterImages.length > 0) {
             const randomMonsterImage = monsterImages[Math.floor(Math.random() * monsterImages.length)];
-            const imageDescription = randomMonsterImage.description || `một yêu thú đáng sợ`;
+            imagePrompt = randomMonsterImage.description || `một yêu thú đáng sợ`;
             imageUrl = randomMonsterImage.url;
             try {
-                name = await generateMonsterName(imageDescription, level);
+                name = await generateMonsterName(imagePrompt, level);
             } catch (error) {
                 console.error("AI monster name generation failed, using fallback:", error);
                 name = randomMonsterImage.description || `Yêu Thú lv ${level}`;
@@ -549,10 +551,17 @@ export const createMonster = async (
         originalName = name;
     }
     
-    if (!imageUrl) {
-        const monsterImages = imageLibrary.filter(img => img.isMonster);
-        if (monsterImages.length > 0) {
-            imageUrl = monsterImages[Math.floor(Math.random() * monsterImages.length)].url;
+    if (!imageUrl && imagePrompt) {
+        try {
+            console.log(`Generating image for monster: ${name} with prompt: "${imagePrompt}"`);
+            const imageResult = await generateImage(imagePrompt, false);
+            if (imageResult.imageUrl) {
+                imageUrl = imageResult.imageUrl;
+            } else {
+                 console.warn("AI image generation failed for monster:", imageResult.error);
+            }
+        } catch (error) {
+            console.error("Error during AI image generation for monster:", error);
         }
     }
 
