@@ -456,9 +456,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 characterClass: enemy.playerClass,
                 derivedStats: enemy.derivedStats, // Keep stats
                 // Ensure required arrays exist
-                pets: [], 
-                retainers: [],
-                servants: [],
                 metNpcs: [],
                 quests: [],
                 reputation: {},

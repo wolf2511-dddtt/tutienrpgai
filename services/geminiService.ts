@@ -390,6 +390,41 @@ export const generateStrategicAdvice = async (character: Character, terrain: str
     }
 };
 
+// --- Search Grounding ---
+
+export const searchCultivationKnowledge = async (query: string): Promise<{ text: string, sources?: {uri: string, title: string}[] }> => {
+    const prompt = `
+    Bạn là một cuốn bách khoa toàn thư về thế giới Tiên Hiệp, Thần Thoại Trung Hoa và Đạo Giáo.
+    Người dùng đang hỏi: "${query}"
+    
+    Hãy sử dụng Google Search để tìm kiếm thông tin chính xác và cập nhật nhất.
+    Trả lời ngắn gọn, súc tích, mang phong cách cổ trang.
+    Nếu câu hỏi không liên quan đến chủ đề game/tiên hiệp, hãy tìm cách lái về bối cảnh game hoặc trả lời một cách hài hước theo phong cách tu tiên.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                tools: [{ googleSearch: {} }],
+            },
+        });
+        
+        const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
+            ?.map((chunk: any) => chunk.web ? { uri: chunk.web.uri, title: chunk.web.title } : null)
+            .filter(Boolean);
+
+        return {
+            text: response.text.trim(),
+            sources: sources as {uri: string, title: string}[]
+        };
+    } catch (e: any) {
+        console.error("Error searching knowledge:", e);
+        return { text: "Tàng Thư Các hiện đang đóng cửa để bảo trì trận pháp. Vui lòng quay lại sau." };
+    }
+}
+
 // --- Dynamic Quest Generation ---
 
 export const generateSectMission = async (faction: Faction, characterRank: string): Promise<any> => {
