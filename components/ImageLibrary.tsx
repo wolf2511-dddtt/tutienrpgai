@@ -12,7 +12,7 @@ const AILoadingIcon: React.FC<{className?: string}> = ({className}) => (
 );
 
 
-const ImageLibrary: React.FC = () => {
+export const ImageLibrary: React.FC = () => {
     const { imageLibrary: library, handleUpdateImageLibrary: onUpdateLibrary, handleBackToMenu: onClose } = useGame();
     const [url, setUrl] = useState('');
     const [description, setDescription] = useState('');
@@ -26,7 +26,6 @@ const ImageLibrary: React.FC = () => {
     const [isAITagsLoading, setIsAITagsLoading] = useState(false);
     const [aiPrompt, setAiPrompt] = useState('');
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-    const [isImportingFromWeb, setIsImportingFromWeb] = useState(false);
 
 
     useEffect(() => {
@@ -154,195 +153,129 @@ const ImageLibrary: React.FC = () => {
         link.href = jsonString;
         link.download = "image_library.json";
         link.click();
-        setNotification(`Đã xuất thành công ${library.length} ảnh ra file 'image_library.json'.`);
+        setNotification(`Đã xuất thư viện thành công vào file image_library.json.`);
     };
     
-    const handleImportClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setNotification('');
-            setError('');
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const importedData = JSON.parse(event.target?.result as string);
-                    if (!Array.isArray(importedData) || !importedData.every(item => 'id' in item && 'url' in item && 'description' in item)) {
-                        setError("File JSON không hợp lệ hoặc không đúng định dạng. Mỗi ảnh phải có 'id', 'url', và 'description'.");
-                        return;
-                    }
-                    
-                    if (library.length > 0 && window.confirm("Bạn có muốn GỘP thư viện hiện tại với file đã nhập không?\n\n- OK: Gộp (thêm ảnh mới, bỏ qua ảnh trùng lặp ID)\n- Cancel: THAY THẾ toàn bộ thư viện hiện tại.")) {
-                        const existingIds = new Set(library.map(item => item.id));
-                        const newItems = importedData.filter((item: ImageLibraryItem) => !existingIds.has(item.id));
-                        onUpdateLibrary([...library, ...newItems]);
-                        setNotification(`Đã gộp thành công, thêm ${newItems.length} ảnh mới vào thư viện.`);
-                    } else {
-                        onUpdateLibrary(importedData);
-                        setNotification(`Đã thay thế thư viện thành công, nhập ${importedData.length} ảnh.`);
-                    }
-                } catch (err) {
-                    setError("Lỗi khi đọc file JSON. Vui lòng kiểm tra lại cấu trúc file.");
-                }
-            };
-            reader.readAsText(file);
-        }
-        e.target.value = ''; // Allow re-uploading the same file
-    };
-
-    const handleImportFromWeb = async () => {
-        setIsImportingFromWeb(true);
-        setError('');
+    const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
         setNotification('');
-        
-        try {
-            const response = await fetch('https://raw.githubusercontent.com/x-ia/the-valkyries/main/src/assets/avatar-tutien/manifest.json');
-            if (!response.ok) {
-                throw new Error(`Failed to fetch manifest: ${response.statusText}`);
-            }
-            const imagePaths = await response.json();
-    
-            if (!Array.isArray(imagePaths)) {
-                throw new Error('Manifest is not a valid array.');
-            }
-    
-            const existingUrls = new Set(library.map(item => item.url));
-            const newImages: ImageLibraryItem[] = [];
-    
-            for (const path of imagePaths) {
-                const url = `https://avatatutien.pages.dev${path}`;
-                if (!existingUrls.has(url)) {
-                    const filename = path.split('/').pop() || '';
-                    const baseName = filename.split('.')[0] || '';
-                    const tags = ['tư-tiên'];
-                    if (baseName.startsWith('nu')) tags.push('nữ');
-                    if (baseName.startsWith('nam')) tags.push('nam');
-    
-                    newImages.push({
-                        id: crypto.randomUUID(),
-                        url: url,
-                        description: `Ảnh từ AvatarTuTien: ${filename}`,
-                        tags: tags,
-                        isMonster: false,
-                    });
+        setError('');
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const importedLibrary = JSON.parse(event.target?.result as string);
+                if (Array.isArray(importedLibrary)) {
+                    // Basic validation
+                    const validItems = importedLibrary.filter(item => item.id && item.url && typeof item.description === 'string' && Array.isArray(item.tags));
+                    onUpdateLibrary([...validItems, ...library]);
+                    setNotification(`${validItems.length} ảnh đã được nhập thành công.`);
+                } else {
+                    setError('File JSON không hợp lệ.');
                 }
+            } catch (err) {
+                setError('Không thể đọc file JSON.');
             }
-            
-            if (newImages.length > 0) {
-                onUpdateLibrary([...newImages, ...library]);
-                setNotification(`Đã nhập thành công ${newImages.length} ảnh mới từ AvatarTuTien.`);
-            } else {
-                setNotification('Thư viện ảnh đã được cập nhật. Không có ảnh mới nào được tìm thấy.');
-            }
-    
-        } catch (err: any) {
-            setError(`Lỗi khi nhập từ web: ${err.message}`);
-        } finally {
-            setIsImportingFromWeb(false);
-        }
+        };
+        reader.readAsText(file);
+        
+        if(e.target) e.target.value = '';
     };
 
     const filteredLibrary = useMemo(() => {
-        if (!filter) return library;
+        if (!filter.trim()) return library;
         const lowercasedFilter = filter.toLowerCase();
-        return library.filter(item =>
-            item.description.toLowerCase().includes(lowercasedFilter) ||
+        return library.filter(item => 
+            item.description.toLowerCase().includes(lowercasedFilter) || 
             item.tags.some(tag => tag.toLowerCase().includes(lowercasedFilter))
         );
     }, [library, filter]);
 
-
     return (
-        <div className="min-h-screen bg-gray-900 text-white p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-8 w-full max-w-6xl text-white relative max-h-[90vh] flex flex-col">
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl z-10">&times;</button>
-                <div className="bg-gray-800 border border-blue-500/20 shadow-2xl rounded-2xl p-8">
-                    <h1 className="text-3xl font-bold text-blue-400 mb-6">Công cụ Quản lý Ảnh</h1>
-                    
-                    {notification && <div className="bg-green-900/50 border border-green-500 text-green-300 p-3 rounded-lg mb-4">{notification}</div>}
-                    {error && <div className="bg-red-900/50 border border-red-500 text-red-300 p-3 rounded-lg mb-4">{error}</div>}
+                <h2 className="text-3xl font-bold text-center text-cyan-400 mb-6 flex-shrink-0">Thư Viện Ảnh</h2>
+                
+                {notification && <div className="bg-green-800 text-green-200 p-3 rounded-lg mb-4 text-center animate-fade-in">{notification}</div>}
+                {error && <div className="bg-red-800 text-red-200 p-3 rounded-lg mb-4 text-center animate-fade-in">{error}</div>}
 
-                     {/* AI Image Generation */}
-                    <div className="mb-8 p-4 bg-purple-900/20 border border-purple-500/30 rounded-lg">
-                        <h2 className="text-xl font-semibold mb-3 text-purple-300">Tạo Ảnh Bằng AI</h2>
-                        <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} placeholder="Mô tả hình ảnh bạn muốn tạo, ví dụ: 'một con rồng lửa khổng lồ bay trên đỉnh núi lửa'..." rows={2} className="w-full bg-gray-700 p-3 rounded-lg border-2 border-gray-600 focus:border-purple-500 outline-none transition resize-none"></textarea>
-                        <button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage} className="w-full mt-2 text-white font-bold py-2 px-4 rounded-lg transition duration-300 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center">
-                            {isGeneratingImage ? <><AILoadingIcon className="mr-2" /> Đang tạo ảnh...</> : 'Tạo Ảnh'}
-                        </button>
-                    </div>
+                <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden">
+                    <div className="md:col-span-1 bg-gray-800/50 p-4 rounded-lg flex flex-col space-y-4 overflow-y-auto">
+                        <h3 className="text-xl font-semibold text-gray-300">Thêm / Tạo Ảnh</h3>
 
-                    <form onSubmit={handleAddImage} className="space-y-4 mb-8">
-                         <h2 className="text-xl font-semibold text-blue-300">Thêm Ảnh Thủ Công</h2>
-                        <input type="text" value={url} onChange={e => setUrl(e.target.value)} placeholder="URL Ảnh..." className="w-full bg-gray-700 p-3 rounded-lg border-2 border-gray-600 focus:border-blue-500 outline-none transition" />
-                        
-                        <div className="relative">
-                            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Mô tả cho ảnh..." rows={3} className="w-full bg-gray-700 p-3 rounded-lg border-2 border-gray-600 focus:border-blue-500 outline-none transition resize-none pr-32"></textarea>
-                            <button type="button" onClick={handleGenerateDesc} disabled={isAIDescLoading} className="absolute bottom-3 right-3 bg-gray-600 hover:bg-gray-500 text-xs px-2 py-1 rounded-md flex items-center gap-1 disabled:opacity-50">
-                                {isAIDescLoading ? <AILoadingIcon className="h-4 w-4" /> : 'Tạo mô tả bằng AI'}
+                        <div className="bg-gray-700/50 p-3 rounded-md">
+                            <label htmlFor="ai-prompt" className="block text-sm font-medium mb-1">Tạo ảnh bằng AI</label>
+                            <textarea id="ai-prompt" value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} rows={3} className="w-full bg-gray-800 p-2 rounded-md" placeholder="VD: một con rồng lửa trên đỉnh núi tuyết..."></textarea>
+                            <button onClick={handleGenerateImage} disabled={isGeneratingImage} className="w-full mt-2 bg-purple-600 hover:bg-purple-700 rounded-md py-2 flex items-center justify-center disabled:bg-gray-500">
+                                {isGeneratingImage ? <AILoadingIcon /> : 'Tạo Ảnh'}
                             </button>
                         </div>
-
-                        <div className="flex items-center gap-2">
-                             <input type="text" value={tags} onChange={e => setTags(e.target.value)} placeholder="Thẻ (phân cách bởi ';') vd: nhân vật; rồng; lâu đài" className="flex-grow bg-gray-700 p-3 rounded-lg border-2 border-gray-600 focus:border-blue-500 outline-none transition" />
-                             <button type="button" onClick={handleGenerateTags} disabled={isAITagsLoading} className="bg-gray-600 hover:bg-gray-500 p-3 rounded-lg flex items-center justify-center disabled:opacity-50">
-                                {isAITagsLoading ? <AILoadingIcon /> : 'AI ✨'}
-                             </button>
-                        </div>
                         
-                        <div className="flex items-center gap-2">
-                            <input type="checkbox" id="isMonster" checked={isMonster} onChange={e => setIsMonster(e.target.checked)} className="h-5 w-5 bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500" />
-                            <label htmlFor="isMonster" className="text-gray-300">Dùng làm ảnh quái vật</label>
-                        </div>
-
-                        <button type="submit" disabled={isAdding} className="w-full text-white font-bold py-3 px-4 rounded-lg transition duration-300 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 disabled:opacity-50">
-                            {isAdding ? 'Đang thêm...' : 'Thêm Ảnh vào Thư viện'}
-                        </button>
-                    </form>
-
-                    {/* Import / Export */}
-                    <div className="mb-8">
-                        <h2 className="text-xl font-semibold mb-3 text-blue-300">Nhập / Xuất</h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <button onClick={handleImportClick} className="bg-gray-700 hover:bg-gray-600 p-3 rounded-lg transition">Nhập Thư Viện (json)</button>
-                            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
-                            <button onClick={handleExport} className="bg-gray-700 hover:bg-gray-600 p-3 rounded-lg transition">Xuất Thư Viện (json)</button>
-                        </div>
-                        <div className="mt-4">
-                            <button onClick={handleImportFromWeb} disabled={isImportingFromWeb} className="w-full bg-teal-600 hover:bg-teal-700 p-3 rounded-lg transition disabled:opacity-50 flex items-center justify-center">
-                                {isImportingFromWeb ? <><AILoadingIcon className="mr-2"/> Đang nhập...</> : 'Nhập Ảnh Nền Tu Tiên (AvatarTuTien)'}
+                        <form onSubmit={handleAddImage} className="space-y-4">
+                            <div>
+                                <label htmlFor="url" className="block text-sm font-medium mb-1">URL Ảnh</label>
+                                <input type="text" id="url" value={url} onChange={(e) => setUrl(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md" required />
+                            </div>
+                            <div>
+                                <label htmlFor="description" className="block text-sm font-medium mb-1">Mô tả</label>
+                                <div className="relative">
+                                    <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full bg-gray-700 p-2 rounded-md"></textarea>
+                                    <button type="button" onClick={handleGenerateDesc} disabled={isAIDescLoading} className="absolute bottom-2 right-2 bg-blue-600 hover:bg-blue-700 rounded-md p-1 disabled:bg-gray-500">
+                                        {isAIDescLoading ? <AILoadingIcon className="h-4 w-4" /> : 'AI ✨'}
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label htmlFor="tags" className="block text-sm font-medium mb-1">Thẻ (phân cách bởi ;)</label>
+                                 <div className="relative">
+                                    <input type="text" id="tags" value={tags} onChange={(e) => setTags(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md" />
+                                     <button type="button" onClick={handleGenerateTags} disabled={isAITagsLoading} className="absolute top-1/2 -translate-y-1/2 right-2 bg-blue-600 hover:bg-blue-700 rounded-md p-1 disabled:bg-gray-500">
+                                        {isAITagsLoading ? <AILoadingIcon className="h-4 w-4" /> : 'AI ✨'}
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <input type="checkbox" id="isMonster" checked={isMonster} onChange={(e) => setIsMonster(e.target.checked)} className="h-4 w-4" />
+                                <label htmlFor="isMonster" className="ml-2 text-sm">Là ảnh Quái vật?</label>
+                            </div>
+                            <button type="submit" disabled={isAdding} className="w-full bg-green-600 hover:bg-green-700 rounded-md py-2 disabled:bg-gray-500">
+                                {isAdding ? 'Đang thêm...' : 'Thêm vào Thư viện'}
                             </button>
-                            <p className="text-xs text-center text-gray-500 mt-1">Tự động tải và thêm bộ sưu tập ảnh nền tu tiên từ trang web công cộng.</p>
-                        </div>
+                        </form>
                     </div>
 
-                    {/* Library View */}
-                    <div>
-                        <h2 className="text-xl font-semibold mb-3 text-blue-300">Thư viện ({library.length})</h2>
-                        <input type="text" value={filter} onChange={e => setFilter(e.target.value)} placeholder="Lọc ảnh theo thẻ hoặc mô tả..." className="w-full bg-gray-700 p-3 rounded-lg border-2 border-gray-600 mb-4 focus:border-blue-500 outline-none transition" />
-
-                        {filteredLibrary.length > 0 ? (
-                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto p-2">
+                    <div className="md:col-span-2 bg-gray-800/50 p-4 rounded-lg flex flex-col">
+                        <div className="flex-shrink-0 mb-4">
+                            <input type="text" value={filter} onChange={e => setFilter(e.target.value)} placeholder="Tìm kiếm theo mô tả hoặc thẻ..." className="w-full bg-gray-700 p-2 rounded-md" />
+                        </div>
+                        <div className="flex-grow overflow-y-auto pr-2">
+                             {filteredLibrary.length > 0 ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {filteredLibrary.map(item => (
-                                    <div key={item.id} className="bg-gray-700 rounded-lg overflow-hidden relative group">
-                                        <button onClick={() => handleDelete(item.id)} className="absolute top-2 right-2 bg-black/50 text-white rounded-full h-8 w-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-red-600">&times;</button>
-                                        <img src={item.url} alt={item.description} className="w-full h-40 object-cover" />
-                                        <div className="p-3">
-                                            <p className="text-sm text-gray-300 truncate" title={item.description}>{item.description || "Không có mô tả"}</p>
-                                            <div className="flex flex-wrap gap-1 mt-2">
-                                                {item.tags.map(tag => <span key={tag} className="bg-blue-900/70 text-blue-300 text-xs px-2 py-0.5 rounded-full">{tag}</span>)}
-                                            </div>
+                                    <div key={item.id} className="group relative aspect-square">
+                                        <img src={item.url} alt={item.description} className="w-full h-full object-cover rounded-md" />
+                                        <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-between text-xs">
+                                            <p className="text-gray-200 line-clamp-3">{item.description}</p>
+                                            <button onClick={() => handleDelete(item.id)} className="self-end bg-red-600 hover:bg-red-700 text-white rounded-full p-1.5">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
-                            </div>
-                        ) : (
-                            <div className="text-center text-gray-500 p-10 bg-gray-700/50 rounded-lg">
-                                Thư viện trống hoặc không có ảnh phù hợp.
-                            </div>
-                        )}
+                                </div>
+                            ) : (
+                                <div className="text-center text-gray-500 pt-16">
+                                    <p>Không có ảnh nào trong thư viện.</p>
+                                </div>
+                             )}
+                        </div>
+                         <div className="flex-shrink-0 mt-4 flex gap-2">
+                            <button onClick={handleExport} className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-md py-2">Xuất file JSON</button>
+                            <button onClick={() => fileInputRef.current?.click()} className="flex-1 bg-gray-600 hover:bg-gray-700 rounded-md py-2">Nhập file JSON</button>
+                            <input type="file" ref={fileInputRef} onChange={handleImport} className="hidden" accept=".json" />
+                         </div>
                     </div>
                 </div>
             </div>

@@ -5,7 +5,8 @@ import CharacterCreator from './components/CharacterCreator';
 import WorldScreen from './components/WorldScreen';
 import { CombatScreen } from './components/CombatScreen';
 import { ForgeScreen } from './components/ForgeScreen';
-import ImageLibrary from './components/ImageLibrary';
+// Fix: Changed to a named import to match the export in ImageLibrary.tsx.
+import { ImageLibrary } from './components/ImageLibrary';
 import Settings from './components/Settings';
 import SaveManagement from './components/SaveManagement';
 import { GameProvider, useGame } from './contexts/GameContext';

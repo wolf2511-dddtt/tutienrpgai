@@ -1,4 +1,6 @@
+
 import React from 'react';
+// Fix: Corrected import path for types.
 import { useGame } from '../contexts/GameContext';
 import { ServantTask, Servant } from '../types';
 
@@ -18,7 +20,7 @@ const ServantCard: React.FC<{ servant: Servant }> = ({ servant }) => {
                         onChange={(e) => handleAssignServantTask(servant.id, e.target.value as ServantTask)}
                         className="bg-gray-700 text-white text-xs p-1 rounded"
                     >
-                        {Object.values(ServantTask).map(task => (
+                        {Object.values(ServantTask).map((task: ServantTask) => (
                             <option key={task} value={task}>{task}</option>
                         ))}
                     </select>

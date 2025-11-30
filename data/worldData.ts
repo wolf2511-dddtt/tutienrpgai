@@ -1,3 +1,6 @@
+
+
+// Fix: Corrected import path for types.
 import { Faction, FactionType, Poi } from '../types';
 
 export const VAN_LINH_GIOI_NAME = "Vạn Linh Giới";

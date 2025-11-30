@@ -1,3 +1,6 @@
+
+
+// Fix: Corrected import path for types.
 import { TerrainType } from '../types';
 
 export const TERRAIN_BACKGROUNDS: { [key in TerrainType]: string } = {

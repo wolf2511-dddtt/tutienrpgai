@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { GameScreen } from '../types';
 import { useGame } from '../contexts/GameContext';
@@ -5,7 +6,7 @@ import { MENU_BACKGROUND_IMAGES } from '../data/menuBackgrounds';
 import ChangelogModal from './ChangelogModal';
 
 const MainMenu: React.FC = () => {
-    const { handleOpenImageLibrary, isFullscreen, handleToggleFullscreen, handleOpenMenu, saveSlots, handleStartNewGame, handleQuickPlay, isQuickPlayLoading, handleDevQuickStart } = useGame();
+    const { handleOpenImageLibrary, isFullscreen, handleToggleFullscreen, handleOpenMenu, saveSlots, handleStartNewGame } = useGame();
     const activeSaveCount = saveSlots.filter(s => s.characterName).length;
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [version, setVersion] = useState('');
@@ -47,52 +48,59 @@ const MainMenu: React.FC = () => {
         <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
             {/* Background Image */}
             <div
-                className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out"
+                className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out opacity-60"
                 style={{ backgroundImage: `url(${MENU_BACKGROUND_IMAGES[currentImageIndex]})`}}
                 key={currentImageIndex} // force re-render for css transition
             />
-            {/* Black overlay for readability */}
-            <div className="absolute inset-0 bg-black/60 z-0" />
+             {/* Mystical Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/80 z-0 pointer-events-none" />
 
             <div className="relative z-10 flex-grow flex flex-col items-center justify-center text-center">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-primary-light)] to-[var(--color-accent-light)] drop-shadow-[0_0_20px_var(--color-primary)]">
+                <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-primary-light)] via-white to-[var(--color-accent-light)] drop-shadow-[0_0_25px_var(--color-primary)] animate-pulse-glow">
                     RPG Tiên Hiệp Designer
                 </h1>
-                <div className="space-y-4 w-64">
+                <p className="text-gray-300 text-lg sm:text-xl mb-8 italic tracking-wide">
+                    Kiến tạo thế giới - Tu luyện thành thần
+                </p>
+
+                <div className="space-y-4 w-72">
                     <button
                         onClick={handleStartNewGame}
-                        disabled={isQuickPlayLoading}
-                        className="w-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-dark)] text-white font-bold py-3 px-8 rounded-lg text-xl transition-all duration-300 ease-in-out shadow-lg hover:shadow-xl hover:shadow-[var(--color-accent-glow-strong)] hover:scale-105 disabled:animate-none disabled:bg-gray-600 disabled:from-gray-600 disabled:shadow-none disabled:scale-100"
+                        className="w-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-dark)] text-white font-bold py-4 px-8 rounded-xl text-xl transition-all duration-300 ease-in-out shadow-lg hover:shadow-2xl hover:shadow-[var(--color-accent-glow-strong)] hover:scale-105 border border-[var(--color-accent-light)]"
                     >
                         Bắt đầu mới
                     </button>
-                    <button
-                        onClick={handleQuickPlay}
-                        disabled={isQuickPlayLoading}
-                        className="w-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white font-bold py-2 px-6 rounded-lg text-lg transition-all duration-300 ease-in-out shadow-md hover:shadow-lg hover:shadow-[var(--color-primary)] hover:scale-105 disabled:bg-gray-600 disabled:from-gray-600 disabled:shadow-none disabled:scale-100 flex items-center justify-center"
+                    
+                     <button
+                        onClick={() => handleOpenMenu(GameScreen.SAVE_MANAGEMENT)}
+                         className="w-full bg-gray-800/80 hover:bg-gray-700/80 text-white font-semibold py-3 px-6 rounded-xl border border-gray-600 hover:border-gray-400 transition-all backdrop-blur-sm"
                     >
-                        {isQuickPlayLoading && (
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        )}
-                        {isQuickPlayLoading ? 'Đang tạo...' : 'Chơi Nhanh (AI)'}
+                        Tiếp tục ({activeSaveCount})
                     </button>
                 </div>
             </div>
-            <footer className="relative z-10 text-center text-[var(--color-text-medium)] text-sm pb-4">
-                <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 mb-2">
-                    <button onClick={() => handleOpenMenu(GameScreen.SAVE_MANAGEMENT)} className="hover:text-[var(--color-text-light)] transition-colors">Quản lý Lưu trữ ({activeSaveCount})</button>
-                    <button onClick={() => handleOpenMenu(GameScreen.SETTINGS)} className="hover:text-[var(--color-text-light)] transition-colors">Thiết Lập</button>
+
+            <footer className="relative z-10 text-center text-[var(--color-text-medium)] text-sm pb-6 w-full max-w-4xl">
+                <div className="flex flex-wrap justify-center items-center gap-6 mb-4">
+                    <button onClick={() => handleOpenMenu(GameScreen.SETTINGS)} className="hover:text-[var(--color-text-light)] transition-colors flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        Thiết Lập
+                    </button>
                     <button onClick={handleToggleFullscreen} className="hover:text-[var(--color-text-light)] transition-colors">
                         {isFullscreen ? 'Thoát Toàn Màn Hình' : 'Toàn Màn Hình'}
                     </button>
                     <button onClick={handleOpenImageLibrary} className="hover:text-[var(--color-text-light)] transition-colors">Thư Viện Ảnh</button>
-                    <button onClick={handleDevQuickStart} className="text-[var(--color-accent-light)] hover:text-[var(--color-accent)] transition-colors">Vào Nhanh (Dev)</button>
                 </div>
-                <button onClick={() => setIsChangelogVisible(true)} className="hover:text-white transition-colors">
-                    Phiên bản {version}
+                
+                <button 
+                    onClick={() => setIsChangelogVisible(true)} 
+                    className="relative inline-flex items-center gap-2 hover:text-white transition-colors bg-white/10 px-4 py-1 rounded-full hover:bg-white/20"
+                >
+                    <span>Phiên bản {version}</span>
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
                 </button>
             </footer>
             {isChangelogVisible && <ChangelogModal onClose={() => setIsChangelogVisible(false)} />}

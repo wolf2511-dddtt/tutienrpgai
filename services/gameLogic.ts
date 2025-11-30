@@ -1,384 +1,447 @@
-import { Character, PlayerClass, Stat, Realm, BaseStats, DerivedStats, Item, ItemType, Rarity, UpgradeMaterial, UpgradeConsumable, AttackResult, AffixId, SetBonus, Skill, SkillType, ImageLibraryItem, WorldState, TerrainType, Difficulty, ActiveEffect, SkillEffect, TargetType, SkillEffectType, Combatant, Pet, PetStatus, CultivationTechnique, Faction, MonsterRank, LinhCan, LinhCanQuality, Element, MonsterTemplate, Servant, ServantTask, CultivationTechniqueType } from '../types';
-import { REALMS, CLASS_STATS, RARITY_DATA, AVAILABLE_ITEM_TYPES, AVAILABLE_BONUS_STATS, ITEM_SETS, SKILLS, MAP_WIDTH, MAP_HEIGHT, TERRAIN_DATA, DIFFICULTY_MODIFIERS, MONSTER_RANK_MODIFIERS, LINH_CAN_QUALITIES, CUSTOM_CLASS_POINTS_PER_LEVEL } from '../constants';
-import { generateItemDetails, generateMonsterName, generateSkill, generateBonusStatsForItem, generateCultivationTechniqueDetails, generateSkillForSkillBook, generateImage } from './geminiService';
-import { BOSS_DEFINITIONS } from '../data/bossData';
-import { BOSS_SKILLS } from '../data/bossSkills';
 
-export const getRealmForLevel = (level: number): Realm => {
-    return REALMS.find(r => level >= r.minLevel && level <= r.maxLevel) || REALMS[REALMS.length - 1];
+import {
+    AttackResult,
+    Character,
+    Item,
+    Skill,
+    EquipmentSlot,
+    Rarity,
+    ItemType,
+    BaseStats,
+    Stat,
+    DerivedStats,
+    ActiveEffect,
+    SkillEffectType,
+    TargetType,
+    Combatant,
+    Equipment,
+    Element,
+    Pet,
+    SetBonus,
+    MonsterRank,
+    UpgradeMaterial,
+    Retainer,
+    PlayerClass,
+// Fix: Corrected import paths to be relative without extensions.
+} from '../types';
+import { BOSS_SKILLS as ALL_SKILLS } from '../data/bossSkills';
+import { RARITY_DATA, STAT_WEIGHTS, MONSTER_RANK_MODIFIERS, PLAYER_CLASS_BASE_STATS } from '../constants';
+import { PREDEFINED_MONSTERS } from '../data/monsterData';
+
+// Helper function to calculate derived stats from base stats
+export const calculateDerivedStats = (
+    character: Omit<Character, 'derivedStats' | 'currentHp' | 'currentMp'>
+): DerivedStats => {
+    const totalBaseStats = { ...character.baseStats };
+    const bonusStats = calculateBonusStatsFromEquipment(character.equipment);
+    const bonusBaseStats = calculateBaseStatBonusesFromEquipment(character.equipment);
+
+    // Add equipment base stat bonuses
+    for (const stat in bonusBaseStats) {
+        totalBaseStats[stat as Stat] = (totalBaseStats[stat as Stat] || 0) + (bonusBaseStats[stat as Stat] || 0);
+    }
+
+    // Optimization: Adjusted scaling factors for better mid-late game balance (Xianxia Theme)
+    // HP: Greatly increased. Cultivators have immense vitality.
+    const HP = (totalBaseStats.CON * 25) + (character.level * 40) + (bonusStats.HP || 0);
+    // MP: Spiritual power scales with Spirit and Level.
+    const MP = (totalBaseStats.SPI * 20) + (character.level * 15) + (bonusStats.MP || 0);
+    
+    // Attack scaling optimized: Main stats contribute significantly more.
+    const ATK = (totalBaseStats.STR * 4.0) + (totalBaseStats.DEX * 1.5) + (bonusStats.ATK || 0);
+    const MATK = (totalBaseStats.INT * 4.0) + (totalBaseStats.SPI * 1.5) + (bonusStats.MATK || 0);
+    
+    // Defense: CON is king (Iron Body), but STR also helps (Muscle Density).
+    const DEF = (totalBaseStats.CON * 3.0) + (totalBaseStats.STR * 1.0) + (bonusStats.DEF || 0);
+    
+    // Speed is crucial for initiative
+    const Speed = (totalBaseStats.AGI * 2.0) + (bonusStats.Speed || 0);
+    
+    // Secondary Stats
+    const PENETRATION = (totalBaseStats.DEX * 0.3) + (bonusStats.PENETRATION || 0);
+    const EVASION = (totalBaseStats.AGI * 0.3) + (bonusStats.EVASION || 0);
+    const CRIT_RATE = (totalBaseStats.DEX * 0.35) + (bonusStats.CRIT_RATE || 0);
+    const ACCURACY = (totalBaseStats.DEX * 0.6) + 90 + (bonusStats.ACCURACY || 0); // Base 90% accuracy
+    const LIFESTEAL = (bonusStats.LIFESTEAL || 0);
+
+
+    return { HP, MP, ATK, MATK, DEF, Speed, PENETRATION, EVASION, CRIT_RATE, ACCURACY, LIFESTEAL, ...totalBaseStats };
 };
 
-export const generateLinhCan = (): LinhCan => {
-    const qualities = Object.entries(LINH_CAN_QUALITIES);
-    const totalWeight = qualities.reduce((sum, [, data]) => sum + data.weight, 0);
-    let random = Math.random() * totalWeight;
-
-    let chosenQuality: LinhCanQuality = LinhCanQuality.PHAM;
-    for (const [quality, data] of qualities) {
-        if (random < data.weight) {
-            chosenQuality = quality as LinhCanQuality;
-            break;
-        }
-        random -= data.weight;
-    }
-
-    const elements = [Element.KIM, Element.MOC, Element.THUY, Element.HOA, Element.THO];
-    let chosenElements: Element[] = [];
-    const roll = Math.random() * 100;
-    let numElements = 1;
-
-    if (roll < 60) numElements = 1;      // 60% chance for 1 element
-    else if (roll < 85) numElements = 2; // 25% for 2
-    else if (roll < 95) numElements = 3; // 10% for 3
-    else if (roll < 99) numElements = 4; // 4% for 4
-    else numElements = 5;                // 1% for 5 (Ngũ Hành)
-
-    const shuffledElements = [...elements].sort(() => 0.5 - Math.random());
-    chosenElements = shuffledElements.slice(0, numElements);
+export const calculatePetDerivedStats = (pet: Pet): DerivedStats => {
+    const { baseStats, level, isEvolved } = pet;
     
-    let description = '';
-    const elementNames = chosenElements.join(', ');
-    if (numElements === 1) {
-        description = `Thiên phú dị bẩm, một Linh Căn ${chosenElements[0]} đơn thuần khiết, đạt đến phẩm cấp ${chosenQuality}.`;
-    } else if (numElements === 5) {
-        description = `Vạn năm khó gặp, một Ngũ Hành Hỗn Độn Linh Căn, ẩn chứa sức mạnh kinh thiên, đạt đến phẩm cấp ${chosenQuality}.`;
-    } else {
-        description = `Một Linh Căn hiếm thấy, mang trong mình sức mạnh của các hệ ${elementNames}, đạt đến phẩm cấp ${chosenQuality}.`;
-    }
+    // Evolution grants a 20% multiplier to raw stats calculations
+    const evoMult = isEvolved ? 1.2 : 1.0;
 
-
-    return {
-        quality: chosenQuality,
-        elements: chosenElements,
-        description: description,
+    const stats: DerivedStats = {
+        ...baseStats,
+        // HP: Massive scaling for Pets to act as tanks.
+        // Formula: (CON * 35 + Level * 60) * EvoMult
+        HP: Math.floor((baseStats.CON * 35 + level * 60) * evoMult),
+        
+        MP: 0, // Pets don't use MP in this model
+        
+        // ATK/MATK: High multiplier (5.0) for primary stats to make them hit hard without equipment.
+        ATK: Math.floor((baseStats.STR * 5.0 + baseStats.DEX * 2.0) * evoMult),
+        MATK: Math.floor((baseStats.INT * 5.0 + baseStats.SPI * 2.0) * evoMult),
+        
+        // DEF: High CON scaling for survivability.
+        DEF: Math.floor((baseStats.CON * 4.0 + baseStats.STR * 1.5) * evoMult),
+        
+        // Speed
+        Speed: Math.floor((baseStats.AGI * 2.2) * evoMult),
+        
+        // Secondary Stats: Improved scaling from DEX/AGI
+        PENETRATION: (baseStats.DEX * 0.4) * evoMult,
+        EVASION: (baseStats.AGI * 0.4) * evoMult,
+        CRIT_RATE: (baseStats.DEX * 0.5) * evoMult,
+        ACCURACY: (baseStats.DEX * 0.8 + 90) * evoMult,
+        
+        // Evolved pets get native Lifesteal for sustainability
+        LIFESTEAL: isEvolved ? 5 : 0,
     };
-};
-
-
-export const calculateForgingExpToNextLevel = (level: number): number => {
-    return Math.floor(100 * Math.pow(1.5, level - 1));
-};
-
-export const getSkillsForLevel = (level: number, playerClass: string): Skill[] => {
-    // Custom classes have no predefined skills, they get them from AI during level up
-    if (!Object.values(PlayerClass).includes(playerClass as PlayerClass)) {
-        return [];
-    }
-    return SKILLS.filter(skill => skill.class === playerClass && level >= skill.levelRequired);
-};
-
-export const calculateExpToNextLevel = (level: number): number => {
-    if (level === 0) return 100;
-    // Switched to an exponential curve for better RPG progression feel
-    return Math.floor(100 * Math.pow(level, 1.5));
-};
-
-export const calculateBaseStats = (level: number, playerClass: string, classDefinition?: BaseStats): BaseStats => {
-    const realm = getRealmForLevel(level);
-    const realmIndex = REALMS.findIndex(r => r.name === realm.name);
-    
-    const stats: BaseStats = {
-        [Stat.STR]: 10,
-        [Stat.AGI]: 10,
-        [Stat.INT]: 10,
-        [Stat.SPI]: 10,
-        [Stat.CON]: 10,
-        [Stat.DEX]: 10,
-    };
-
-    const levelUpStats = classDefinition || CLASS_STATS[playerClass as PlayerClass]?.levelUp;
-    
-    if (levelUpStats && level > 1) {
-        // Optimization: Replaced loop with direct multiplication for performance
-        const levelsToGainStats = level - 1;
-        stats[Stat.STR] += (levelUpStats.STR || 0) * levelsToGainStats;
-        stats[Stat.AGI] += (levelUpStats.AGI || 0) * levelsToGainStats;
-        stats[Stat.INT] += (levelUpStats.INT || 0) * levelsToGainStats;
-        stats[Stat.SPI] += (levelUpStats.SPI || 0) * levelsToGainStats;
-        stats[Stat.CON] += (levelUpStats.CON || 0) * levelsToGainStats;
-        stats[Stat.DEX] += (levelUpStats.DEX || 0) * levelsToGainStats;
-    }
-    
-    // Add realm bonuses only for default classes
-    if (!classDefinition && Object.values(PlayerClass).includes(playerClass as PlayerClass)) {
-        const classStats = CLASS_STATS[playerClass as PlayerClass];
-        if (realmIndex >= 0) {
-            stats[Stat.STR] += (classStats.realmBonus[Stat.STR] || 0) * (realmIndex + 1);
-            stats[Stat.AGI] += (classStats.realmBonus[Stat.AGI] || 0) * (realmIndex + 1);
-            stats[Stat.INT] += (classStats.realmBonus[Stat.INT] || 0) * (realmIndex + 1);
-            stats[Stat.SPI] += (classStats.realmBonus[Stat.SPI] || 0) * (realmIndex + 1);
-            stats[Stat.CON] += (classStats.realmBonus[Stat.CON] || 0) * (realmIndex + 1);
-            stats[Stat.DEX] += (classStats.realmBonus[Stat.DEX] || 0) * (realmIndex + 1);
-        }
-    }
-    
     return stats;
 };
 
-export const calculateDerivedStats = (level: number, baseStats: BaseStats, equipment: Character['equipment'], skills: Skill[], learnedCultivationTechniques: CultivationTechnique[], activeCultivationTechniqueId: string | null, servants: Servant[]): DerivedStats => {
+export const calculateRetainerStats = (retainer: Retainer): DerivedStats => {
+    const { baseStats, level, potential, equipment } = retainer;
+    
+    const bonusStats = calculateBonusStatsFromEquipment(equipment);
+    const bonusBaseStats = calculateBaseStatBonusesFromEquipment(equipment);
+    
     const totalBaseStats = { ...baseStats };
-    const bonusDerivedStats: { [key: string]: number } = {};
-    const percentDerivedStats: { [key: string]: number } = {};
+    // Add equipment base stat bonuses
+    for (const stat in bonusBaseStats) {
+        totalBaseStats[stat as Stat] = (totalBaseStats[stat as Stat] || 0) + (bonusBaseStats[stat as Stat] || 0);
+    }
 
-    Object.values(equipment).forEach(item => {
-        if (!item) return;
-        Object.entries(item.baseStats).forEach(([stat, value]) => {
-            if (stat in totalBaseStats) {
-                (totalBaseStats as any)[stat] += value;
-            } else {
-                bonusDerivedStats[stat] = (bonusDerivedStats[stat] || 0) + value;
-            }
-        });
-        Object.entries(item.bonusStats).forEach(([stat, value]) => {
-            if (Object.values(Stat).includes(stat as Stat)) {
-                 bonusDerivedStats[stat] = (bonusDerivedStats[stat] || 0) + value;
-            }
-        });
-        if (item.soulEffect) {
-            const { stat, value, isPercent } = item.soulEffect.bonus;
-            if (isPercent) {
-                percentDerivedStats[stat] = (percentDerivedStats[stat] || 0) + value;
-            } else {
-                 if (stat in totalBaseStats) {
-                    (totalBaseStats as any)[stat] += value;
-                } else {
-                    bonusDerivedStats[stat] = (bonusDerivedStats[stat] || 0) + value;
-                }
-            }
-        }
-    });
+    // Retainers scale based on potential. Higher potential = better stats per stat point.
+    const p = potential || 1.0;
 
-    const activeBonuses = getActiveSetBonuses(equipment);
-    activeBonuses.forEach(set => {
-        set.bonuses.forEach(({ bonus, active }) => {
-            if (active) {
-                Object.entries(bonus.stats).forEach(([statKey, value]) => {
-                    if (statKey in totalBaseStats) {
-                        (totalBaseStats as any)[statKey] += value;
-                    } else {
-                        bonusDerivedStats[statKey] = (bonusDerivedStats[statKey] || 0) + value;
-                    }
-                });
-            }
-        });
-    });
+    const HP = (totalBaseStats.CON * 20 * p) + (level * 30 * p) + (bonusStats.HP || 0);
+    const MP = (totalBaseStats.SPI * 15 * p) + (level * 10 * p) + (bonusStats.MP || 0);
     
-    // Initialize new accumulators for specific stats
-    let evasionFromThanPhap = 0;
-    let accuracyFromCongKich = 0;
-    let penetrationFromSkillsAndTechniques = 0;
+    const ATK = (totalBaseStats.STR * 3.5 * p) + (totalBaseStats.DEX * 1.2) + (bonusStats.ATK || 0);
+    const MATK = (totalBaseStats.INT * 3.5 * p) + (totalBaseStats.SPI * 1.2) + (bonusStats.MATK || 0);
+    const DEF = (totalBaseStats.CON * 2.5 * p) + (totalBaseStats.STR * 0.8) + (bonusStats.DEF || 0);
+    
+    const Speed = (totalBaseStats.AGI * 1.8 * p) + (bonusStats.Speed || 0);
+    
+    const PENETRATION = (totalBaseStats.DEX * 0.25) + (bonusStats.PENETRATION || 0);
+    const EVASION = (totalBaseStats.AGI * 0.25) + (bonusStats.EVASION || 0);
+    const CRIT_RATE = (totalBaseStats.DEX * 0.3) + (bonusStats.CRIT_RATE || 0);
+    const ACCURACY = (totalBaseStats.DEX * 0.5) + 85 + (bonusStats.ACCURACY || 0);
+    const LIFESTEAL = (bonusStats.LIFESTEAL || 0);
 
-    // Process passive skills
-    skills.forEach(skill => {
-        if (skill.type === SkillType.PASSIVE) {
-            skill.effects.forEach(effect => {
-                if (effect.type === SkillEffectType.BUFF && effect.stat && effect.value) {
-                     if (effect.stat === Stat.PENETRATION) {
-                        penetrationFromSkillsAndTechniques += effect.value;
-                     } else if (effect.isPercent) {
-                        percentDerivedStats[effect.stat] = (percentDerivedStats[effect.stat] || 0) + effect.value;
-                    } else {
-                        if (effect.stat in totalBaseStats) {
-                            (totalBaseStats as any)[effect.stat] += effect.value;
-                        } else {
-                            bonusDerivedStats[effect.stat] = (bonusDerivedStats[effect.stat] || 0) + effect.value;
-                        }
-                    }
-                }
-            });
-        }
-    });
+    return { HP, MP, ATK, MATK, DEF, Speed, PENETRATION, EVASION, CRIT_RATE, ACCURACY, LIFESTEAL, ...totalBaseStats };
+};
 
-    // Process ALL learned cultivation techniques for passive bonuses
-    learnedCultivationTechniques.forEach(tech => {
-        tech.bonuses.forEach(bonus => {
-            const { stat, value, isPercent } = bonus;
-            
-            if (stat === Stat.EVASION && tech.type === CultivationTechniqueType.THAN_PHAP) {
-                evasionFromThanPhap += value;
-            } else if (stat === Stat.ACCURACY && tech.type === CultivationTechniqueType.CONG_KICH) {
-                accuracyFromCongKich += value;
-            } else if (stat === Stat.PENETRATION) {
-                penetrationFromSkillsAndTechniques += value;
-            } else {
-                 if (isPercent) {
-                    percentDerivedStats[stat] = (percentDerivedStats[stat] || 0) + value;
-                } else {
-                    if (stat in totalBaseStats) {
-                        (totalBaseStats as any)[stat] += value;
-                    } else {
-                        bonusDerivedStats[stat] = (bonusDerivedStats[stat] || 0) + value;
-                    }
-                }
-            }
-        });
-    });
+export const generateRandomRetainer = (level: number, masterId: string): Retainer => {
+    const classes = Object.values(PlayerClass);
+    const selectedClass = classes[Math.floor(Math.random() * classes.length)];
+    const potentialRoll = Math.random();
+    let potential = 1.0;
+    let potentialDesc = 'Phàm nhân';
+    
+    if (potentialRoll > 0.95) { potential = 1.5; potentialDesc = 'Thiên Tài Ngàn Năm'; }
+    else if (potentialRoll > 0.8) { potential = 1.3; potentialDesc = 'Kỳ Tài'; }
+    else if (potentialRoll > 0.5) { potential = 1.1; potentialDesc = 'Có Tư Chất'; }
+    
+    const baseStats = { ...PLAYER_CLASS_BASE_STATS[selectedClass] };
+    // Randomize stats slightly
+    for (const key in baseStats) {
+        baseStats[key as Stat] += Math.floor(Math.random() * 5);
+    }
 
-    let derived: DerivedStats = {
-        [Stat.HP]: totalBaseStats.CON * 15 + (level * 5),
-        [Stat.MP]: totalBaseStats.INT * 5 + totalBaseStats.SPI * 5 + (level * 2),
-        [Stat.ATK]: totalBaseStats.STR * 2.0 + (level * 0.5),
-        [Stat.MATK]: totalBaseStats.INT * 2.5 + (level * 0.5),
-        [Stat.DEF]: totalBaseStats.CON * 1.5 + (level * 0.5),
-        [Stat.SPEED]: totalBaseStats.AGI * 1.1 + (level * 0.1),
-        [Stat.PENETRATION]: 0,
-        [Stat.EVASION]: 0,
-        [Stat.CRIT_RATE]: (totalBaseStats.DEX * 0.6 + totalBaseStats.AGI * 0.4) + (level * 0.1),
-        [Stat.ACCURACY]: 0,
-        [Stat.LIFESTEAL]: 0,
-        [Stat.ATK_SPEED]: 0,
-        [Stat.FIRE_DMG_BONUS]: 0,
-        [Stat.WATER_DMG_BONUS]: 0,
-        [Stat.WOOD_DMG_BONUS]: 0,
-        [Stat.METAL_DMG_BONUS]: 0,
-        [Stat.EARTH_DMG_BONUS]: 0,
-        [Stat.FIRE_RES]: 0,
-        [Stat.WATER_RES]: 0,
-        [Stat.WOOD_RES]: 0,
-        [Stat.METAL_RES]: 0,
-        [Stat.EARTH_RES]: 0,
+    const retainer: Retainer = {
+        id: crypto.randomUUID(),
+        masterId,
+        name: `Đệ Tử ${selectedClass}`, // Ideally generate a name
+        playerClass: selectedClass,
+        specialization: selectedClass,
+        level: Math.max(1, level - 5),
+        exp: 0,
+        expToNextLevel: 200,
+        realm: { name: 'Luyện Khí Kỳ', level: 1 },
+        baseStats,
+        derivedStats: {} as any, // Recalculated below
+        currentHp: 0,
+        currentMp: 0,
+        backstory: `Một ${potentialDesc.toLowerCase()} được bạn tìm thấy trên đường tu tiên.`,
+        equipment: {},
+        inventory: [],
+        skills: [], // Could assign basic skills
+        activeEffects: [],
+        position: { x: 0, y: 0 },
+        isHumanoid: true,
+        isBoss: false,
+        loyalty: 60,
+        potential,
+        linhCan: { elements: [Element.VO], quality: potentialDesc, description: '...' },
+        learnedCultivationTechniques: []
     };
-
-    // Apply flat bonuses from equipment etc. to the base derived values before capping
-    const baseEvasionFromStats = (totalBaseStats.AGI + totalBaseStats.DEX) * 0.6 + (level * 0.1) + (bonusDerivedStats[Stat.EVASION] || 0);
-    const baseAccuracyFromStats = totalBaseStats.DEX * 1.5 + (level * 0.3) + (bonusDerivedStats[Stat.ACCURACY] || 0);
-    // Penetration is now a percentage
-    const basePenetrationFromStats = (totalBaseStats.STR * 0.1) + (level * 0.05) + (bonusDerivedStats[Stat.PENETRATION] || 0);
     
-    // Apply new rules and caps
-    const cappedBaseEvasion = Math.min(20, baseEvasionFromStats);
-    const cappedSkillEvasion = Math.min(60, evasionFromThanPhap);
-    derived[Stat.EVASION] = Math.min(80, cappedBaseEvasion + cappedSkillEvasion);
-
-    const cappedBaseAccuracy = Math.min(10, baseAccuracyFromStats);
-    const cappedSkillAccuracy = Math.min(85, accuracyFromCongKich);
-    derived[Stat.ACCURACY] = Math.min(95, cappedBaseAccuracy + cappedSkillAccuracy);
-
-    const cappedBasePenetration = Math.min(10, basePenetrationFromStats);
-    const cappedSkillPenetration = Math.min(70, penetrationFromSkillsAndTechniques);
-    derived[Stat.PENETRATION] = Math.min(80, cappedBasePenetration + cappedSkillPenetration);
-
-
-    // Apply remaining flat bonuses
-    for (const [stat, value] of Object.entries(bonusDerivedStats)) {
-        if (stat in derived && ![Stat.EVASION, Stat.ACCURACY, Stat.PENETRATION].includes(stat as Stat)) {
-            (derived as any)[stat] += value;
-        }
-    }
+    const derived = calculateRetainerStats(retainer);
+    retainer.derivedStats = derived;
+    retainer.currentHp = derived.HP;
+    retainer.currentMp = derived.MP;
     
-    // Apply percentage bonuses to all stats
-    for (const [stat, value] of Object.entries(percentDerivedStats)) {
-        if (stat in derived) {
-            (derived as any)[stat] *= (1 + value / 100);
-        }
-    }
-
-    // Process servant bonuses
-    const guardingServants = servants.filter(s => s.task === ServantTask.GUARDING);
-    if (guardingServants.length > 0) {
-        const defBonus = guardingServants.reduce((total, servant) => total + (servant.level * 0.5), 0); // 0.5 DEF per level of each guarding servant
-        derived[Stat.DEF] += defBonus;
-    }
-
-    derived[Stat.HP] = Math.floor(derived[Stat.HP]);
-    derived[Stat.MP] = Math.floor(derived[Stat.MP]);
-    derived[Stat.ATK] = parseFloat(derived[Stat.ATK].toFixed(2));
-    derived[Stat.MATK] = parseFloat(derived[Stat.MATK].toFixed(2));
-    derived[Stat.DEF] = parseFloat(derived[Stat.DEF].toFixed(2));
-    derived[Stat.SPEED] = parseFloat(derived[Stat.SPEED].toFixed(1));
-    derived[Stat.PENETRATION] = parseFloat(derived[Stat.PENETRATION].toFixed(2));
-    derived[Stat.EVASION] = parseFloat(derived[Stat.EVASION].toFixed(2));
-    derived[Stat.CRIT_RATE] = parseFloat(derived[Stat.CRIT_RATE].toFixed(2));
-    derived[Stat.ACCURACY] = parseFloat(derived[Stat.ACCURACY].toFixed(2));
-    derived[Stat.LIFESTEAL] = parseFloat(derived[Stat.LIFESTEAL].toFixed(2));
-    derived[Stat.ATK_SPEED] = 0; // Removed
-    
-    return derived;
+    return retainer;
 };
 
 
-export const calculateBonusStatsFromEquipment = (equipment: Character['equipment']): Partial<DerivedStats> => {
-    const bonusStats: Partial<DerivedStats> = {};
-
-    const addToBonus = (stat: string, value: number) => {
-        (bonusStats as any)[stat] = ((bonusStats as any)[stat] || 0) + value;
-    }
-
-    // Equipment
-    Object.values(equipment).forEach(item => {
-        if (!item) return;
-        // Base stats from items are considered bonuses in this context
-        Object.entries(item.baseStats).forEach(([stat, value]) => addToBonus(stat, value));
-        
-        // Bonus stats
-        Object.entries(item.bonusStats).forEach(([stat, value]) => {
-             if (Object.values(Stat).includes(stat as Stat)) {
-                addToBonus(stat, value);
-            }
-        });
-        
-        // Soul effect (only flat bonuses for this display)
-        if (item.soulEffect && !item.soulEffect.bonus.isPercent) {
-            addToBonus(item.soulEffect.bonus.stat, item.soulEffect.bonus.value);
-        }
-    });
-
-    // Set Bonuses
-    const activeBonuses = getActiveSetBonuses(equipment);
-    activeBonuses.forEach(set => {
-        set.bonuses.forEach(({ bonus, active }) => {
-            if (active) {
-                Object.entries(bonus.stats).forEach(([statKey, value]) => {
-                    addToBonus(statKey, value);
-                });
-            }
-        });
-    });
-
-    return bonusStats;
+export const getTerrainFromPosition = (position: { x: number, y: number }): string => {
+    // Placeholder logic for terrain. In a real game, this would be more complex.
+    if (position.y < 1024) return 'Bắc Hoang';
+    if (position.y > 3072) return 'Nam Cương';
+    return 'Trung Vực';
 };
 
-export const calculateBaseStatBonusesFromEquipment = (equipment: Character['equipment']): Partial<BaseStats> => {
-    const bonuses: BaseStats = {
-        [Stat.STR]: 0,
-        [Stat.AGI]: 0,
-        [Stat.INT]: 0,
-        [Stat.SPI]: 0,
-        [Stat.CON]: 0,
-        [Stat.DEX]: 0,
-    };
+export const performAttack = (attacker: Combatant, defender: Combatant): AttackResult => {
+    const messages: string[] = [];
+    let damage = 0;
+    let lifestealAmount = 0;
+    
+    // 1. Accuracy Check
+    const accuracyRoll = Math.random() * 100;
+    if (accuracyRoll > (attacker.derivedStats.ACCURACY - defender.derivedStats.EVASION)) {
+        messages.push(`${attacker.name} tấn công ${defender.name} nhưng đã bị né!`);
+        return { damage, messages, appliedEffects: [], lifestealAmount, elementalEffect: null };
+    }
 
-    const addToBonus = (stat: string, value: number) => {
-        // Check if the stat key is one of the base stats we are tracking.
-        if (stat in bonuses) {
-             (bonuses as any)[stat] += value;
+    // 2. Damage Calculation
+    const baseDamage = attacker.derivedStats.ATK;
+    const defense = defender.derivedStats.DEF;
+    const penetration = attacker.derivedStats.PENETRATION;
+    
+    const effectiveDefense = Math.max(0, defense * (1 - penetration / 100));
+    
+    // Guaranteed minimum damage based on attacker level to prevent stalemate
+    const minDamage = 1 + Math.floor(attacker.level * 0.5); 
+    let rawDamage = Math.max(minDamage, baseDamage - effectiveDefense);
+
+    // 3. Critical Hit Check
+    const critRoll = Math.random() * 100;
+    if (critRoll < attacker.derivedStats.CRIT_RATE) {
+        rawDamage *= 1.75; // Buffed to 175% crit damage for satisfaction
+        messages.push(`💥 Đòn chí mạng!`);
+    }
+
+    // 4. Randomization (+/- 10%)
+    damage = Math.round(rawDamage * (0.9 + Math.random() * 0.2));
+    
+    // 5. Lifesteal
+    if(attacker.derivedStats.LIFESTEAL > 0) {
+        lifestealAmount = Math.floor(damage * (attacker.derivedStats.LIFESTEAL / 100));
+        if (lifestealAmount > 0) {
+             messages.push(`${attacker.name} hồi ${lifestealAmount} HP nhờ hút máu.`);
         }
-    };
+    }
 
-    // Iterate over all equipped items
-    Object.values(equipment).forEach(item => {
-        if (!item) return;
+    messages.push(`${attacker.name} tấn công ${defender.name}, gây ${damage} sát thương.`);
+    
+    return { damage, messages, appliedEffects: [], lifestealAmount, elementalEffect: null };
+};
 
-        // Add values from the item's primary stats
-        Object.entries(item.baseStats).forEach(([stat, value]) => addToBonus(stat, value));
-        
-        // Add values from the item's bonus stats (if they happen to be base stats)
-        Object.entries(item.bonusStats).forEach(([stat, value]) => addToBonus(stat, value));
-        
-        // Add values from the item's soul effect if it's a flat bonus to a base stat
-        if (item.soulEffect && !item.soulEffect.bonus.isPercent) {
-            addToBonus(item.soulEffect.bonus.stat, item.soulEffect.bonus.value);
+export const useSkill = (caster: Combatant, target: Combatant, skill: Skill): AttackResult => {
+    const messages: string[] = [`${caster.name} sử dụng [${skill.name}] lên ${target.name}!`];
+    let totalDamage = 0;
+    let lifestealAmount = 0;
+    const appliedEffects: ActiveEffect[] = [];
+
+    skill.effects.forEach(effect => {
+        switch (effect.type) {
+            case SkillEffectType.DAMAGE: {
+                const baseDamageStat = skill.useMagicAttack ? caster.derivedStats.MATK : caster.derivedStats.ATK;
+                // Skill damage ignores a portion of defense by default due to magical nature/skill technique
+                const defense = target.derivedStats.DEF * 0.8; 
+                
+                let rawDamage = Math.max(5, baseDamageStat - defense); // Skills have higher min damage
+                
+                // Multiplier
+                rawDamage *= (effect.powerMultiplier || 1);
+                
+                const damage = Math.round(rawDamage * (0.9 + Math.random() * 0.2));
+                totalDamage += damage;
+                messages.push(`Gây ${damage} sát thương.`);
+                
+                 if(caster.derivedStats.LIFESTEAL > 0) {
+                    const ls = Math.floor(damage * (caster.derivedStats.LIFESTEAL / 100));
+                    if (ls > 0) {
+                        lifestealAmount += ls;
+                        messages.push(`${caster.name} hồi ${ls} HP nhờ hút máu.`);
+                    }
+                }
+                break;
+            }
+            case SkillEffectType.HEAL: {
+                const healAmount = Math.round(caster.derivedStats.MATK * (effect.powerMultiplier || 1));
+                totalDamage -= healAmount; // Negative damage is healing
+                messages.push(`Hồi ${healAmount} HP.`);
+                break;
+            }
+            case SkillEffectType.BUFF:
+            case SkillEffectType.DEBUFF:
+            case SkillEffectType.DOT:
+            case SkillEffectType.HOT:
+            case SkillEffectType.STUN:
+            case SkillEffectType.DISABLE_SKILL: {
+                 const newEffect: ActiveEffect = {
+                    id: crypto.randomUUID(),
+                    effect: effect,
+                    remainingTurns: effect.duration || 3,
+                    sourceSkillName: skill.name,
+                };
+                appliedEffects.push(newEffect);
+                messages.push(`${target.name} bị ảnh hưởng bởi ${effect.description}.`);
+                break;
+            }
+             case SkillEffectType.SUMMON:
+                // Summoning logic would be handled at a higher level (e.g., in CombatScreen)
+                messages.push(effect.description);
+                break;
+
         }
     });
 
-    // Add values from active set bonuses
-    const activeBonuses = getActiveSetBonuses(equipment);
-    activeBonuses.forEach(set => {
-        set.bonuses.forEach(({ bonus, active }) => {
-            if (active) {
-                Object.entries(bonus.stats).forEach(([statKey, value]) => {
-                    addToBonus(statKey, value);
-                });
+    return { damage: totalDamage, messages, appliedEffects, lifestealAmount, elementalEffect: null };
+};
+
+export const generateItem = async (level: number, character: Character, forceRarity?: Rarity): Promise<Item> => {
+    const rarity = forceRarity || getWeightedRarity();
+    const rarityData = RARITY_DATA[rarity];
+    
+    const itemType = getRandomItemType();
+    
+    const baseItem = {
+        id: crypto.randomUUID(),
+        level: Math.max(1, level + Math.floor(Math.random() * 6) - 3),
+        type: itemType,
+        rarity,
+        upgradeLevel: 0,
+        maxUpgrade: rarityData.maxUpgrade,
+        baseStats: {},
+        bonusStats: {},
+    };
+
+    const budget = rarityData.statBudget * (1 + itemType.length/10) * (1 + baseItem.level/15); // Slightly reduced budget scaling to prevent overflow
+    
+    let allocatedPoints = 0;
+    const baseStats: Partial<BaseStats> = {};
+
+    // Allocate primary stats
+    const primaryStats = STAT_WEIGHTS[itemType] || {};
+    while (allocatedPoints < budget) {
+        const randomStat = getRandomStat(primaryStats);
+        const points = Math.min(budget - allocatedPoints, Math.floor(Math.random() * (budget / 4)) + 1);
+        baseStats[randomStat] = (baseStats[randomStat] || 0) + points;
+        allocatedPoints += points;
+    }
+    
+    const name = await generateItemName(itemType, rarity, character);
+    
+    return {
+        ...baseItem,
+        name,
+        description: `Một ${itemType} ${rarity} mạnh mẽ.`,
+        // Fix: Cast to 'unknown' first to resolve the TypeScript conversion error.
+        slot: itemType as unknown as EquipmentSlot, // This is a simplification
+        baseStats,
+    };
+};
+
+const getWeightedRarity = (): Rarity => {
+    const roll = Math.random() * 100;
+    if (roll < 50) return Rarity.COMMON;     // 50%
+    if (roll < 80) return Rarity.UNCOMMON;   // 30%
+    if (roll < 95) return Rarity.RARE;       // 15%
+    if (roll < 99) return Rarity.EPIC;       // 4%
+    return Rarity.LEGENDARY; // 1%
+};
+
+const getRandomItemType = (): ItemType => {
+    const types = Object.values(ItemType).filter(t => t !== ItemType.CULTIVATION_MANUAL && t !== ItemType.SKILL_BOOK);
+    return types[Math.floor(Math.random() * types.length)];
+};
+
+const getRandomStat = (weights: {[key in Stat]?: number}): Stat => {
+    const stats = Object.values(Stat);
+    if (Object.keys(weights).length === 0) {
+        return stats[Math.floor(Math.random() * stats.length)];
+    }
+
+    const totalWeight = Object.values(weights).reduce((sum, weight) => sum + (weight || 0), 0);
+    let random = Math.random() * totalWeight;
+
+    for (const [stat, weight] of Object.entries(weights)) {
+        if (random < (weight || 0)) {
+            return stat as Stat;
+        }
+        random -= (weight || 0);
+    }
+    
+    return stats[Math.floor(Math.random() * stats.length)];
+};
+
+const generateItemName = async (itemType: ItemType, rarity: Rarity, character: Character): Promise<string> => {
+    // This would ideally use a Gemini call for dynamic names, but for now, we use templates.
+    const templates = {
+        [ItemType.VũKhí]: ["Kiếm", "Đao", "Thương", "Cung", "Trượng"],
+        [ItemType.Áo]: ["Giáp", "Bào", "Y"],
+        [ItemType.Nón]: ["Mũ", "Khôi", "Quán"],
+        [ItemType.Quần]: ["Quần", "Hài"],
+        [ItemType.Giày]: ["Ủng", "Giày", "Hài"],
+        [ItemType.PhụKiện]: ["Nhẫn", "Dây chuyền", "Ngọc bội"],
+    };
+    const prefixes = {
+        [Rarity.COMMON]: ["Sắt", "Gỗ", "Thường"],
+        [Rarity.UNCOMMON]: ["Đồng", "Tinh xảo", "Bền"],
+        [Rarity.RARE]: ["Bạc", "Linh xảo", "Ma pháp"],
+        [Rarity.EPIC]: ["Vàng", "Huyền ảo", "Thánh quang"],
+        [Rarity.LEGENDARY]: ["Hắc kim", "Thần thoại", "Vô cực"],
+    };
+    const prefix = prefixes[rarity][Math.floor(Math.random() * prefixes[rarity].length)];
+    const base = templates[itemType][Math.floor(Math.random() * templates[itemType].length)];
+    
+    return `${prefix} ${base}`;
+};
+
+
+export const calculateBaseStatBonusesFromEquipment = (equipment: Equipment): Partial<BaseStats> => {
+    const bonuses: Partial<BaseStats> = {};
+    for (const slot in equipment) {
+        const item = equipment[slot as EquipmentSlot];
+        if (item) {
+            for (const stat in item.baseStats) {
+                bonuses[stat as Stat] = (bonuses[stat as Stat] || 0) + item.baseStats[stat as Stat]!;
+            }
+        }
+    }
+    return bonuses;
+};
+
+export const calculateBonusStatsFromEquipment = (equipment: Equipment): Partial<DerivedStats> => {
+    const bonuses: Partial<DerivedStats> = {};
+    for (const slot in equipment) {
+        const item = equipment[slot as EquipmentSlot];
+        if (item) {
+            for (const stat in item.bonusStats) {
+                 const key = stat as keyof DerivedStats;
+                 bonuses[key] = (bonuses[key] || 0) + (item.bonusStats as any)[key]!;
+            }
+        }
+    }
+    
+    // Add set bonuses
+    const activeSetBonuses = getActiveSetBonuses(equipment);
+    activeSetBonuses.forEach(set => {
+        set.bonuses.forEach(bonusInfo => {
+            if (bonusInfo.active) {
+                 for (const stat in bonusInfo.bonus.stats) {
+                    const key = stat as keyof DerivedStats;
+                    bonuses[key] = (bonuses[key] || 0) + (bonusInfo.bonus.stats as any)[key]!;
+                }
             }
         });
     });
@@ -386,897 +449,144 @@ export const calculateBaseStatBonusesFromEquipment = (equipment: Character['equi
     return bonuses;
 };
 
-export const getTerrainFromPosition = (position: { x: number, y: number }): TerrainType => {
-    // Simple logic based on Vạn Linh Giới regions
-    // Bắc Hoang (North: y < 1024)
-    if (position.y < 1024) return TerrainType.MOUNTAIN;
-    // Nam Cương (South: y > 3072)
-    if (position.y > 3072) return TerrainType.FOREST;
-    // Trung Vực (Center)
-    return TerrainType.PLAIN;
+export const getActiveSetBonuses = (equipment: Equipment): { setName: string; pieceCount: number; totalPieces: number; bonuses: { bonus: SetBonus; active: boolean }[] }[] => {
+    const setPieces: { [setName: string]: number } = {};
+    const setsData: { [setName: string]: {bonuses: SetBonus[], totalPieces: number} } = {};
+
+    // Count pieces and collect set data
+    for (const slot in equipment) {
+        const item = equipment[slot as EquipmentSlot];
+        if (item && item.setName && item.setBonuses) {
+            setPieces[item.setName] = (setPieces[item.setName] || 0) + 1;
+            if (!setsData[item.setName]) {
+                 setsData[item.setName] = { bonuses: item.setBonuses, totalPieces: item.setBonuses.sort((a,b)=>b.pieces-a.pieces)[0].pieces };
+            }
+        }
+    }
+
+    const activeBonuses = [];
+    for (const setName in setPieces) {
+        const count = setPieces[setName];
+        const setData = setsData[setName];
+        activeBonuses.push({
+            setName,
+            pieceCount: count,
+            totalPieces: setData.totalPieces,
+            bonuses: setData.bonuses.map(bonus => ({
+                bonus,
+                active: count >= bonus.pieces,
+            })).sort((a, b) => a.bonus.pieces - b.bonus.pieces),
+        });
+    }
+
+    return activeBonuses;
 };
 
-export const createInitialCharacter = (name: string, playerClass: string, classDefinition?: BaseStats, factions: Faction[] = []): Character => {
-    const level = 1;
-    const baseStats = calculateBaseStats(level, playerClass, classDefinition);
-    const equipment = {};
-    const skills = getSkillsForLevel(level, playerClass);
-    const learnedCultivationTechniques: CultivationTechnique[] = [];
-    const activeCultivationTechniqueId = null;
-    const servants: Servant[] = [];
-    const derivedStats = calculateDerivedStats(level, baseStats, equipment, skills, learnedCultivationTechniques, activeCultivationTechniqueId, servants);
-    
-    // Player starts in Trung Vực, near Thái Thanh Thành
-    const startPosition = { x: 2048, y: 2048 };
-    
-    const initialReputation: { [factionId: string]: number } = {};
-    factions.forEach(faction => {
-        initialReputation[faction.id] = 0; // Start neutral
-    });
+export const createMonster = (templateName: string, levelOverride?: number): Character => {
+    const template = PREDEFINED_MONSTERS.find(m => m.name === templateName);
+    if (!template) throw new Error(`Monster template not found: ${templateName}`);
 
-    const linhCan = generateLinhCan();
+    const level = levelOverride || template.level;
+    
+    // Apply Rank Modifiers
+    const rank = template.rank || MonsterRank.Thường;
+    const rankMultiplier = MONSTER_RANK_MODIFIERS[rank].statMultiplier;
 
-    return {
-        id: crypto.randomUUID(),
-        name,
-        playerClass,
-        classDefinition,
-        level,
-        exp: 0,
-        expToNextLevel: calculateExpToNextLevel(level),
-        realm: getRealmForLevel(level),
-        baseStats,
-        derivedStats,
-        currentHp: derivedStats.HP,
-        currentMp: derivedStats.MP,
-        backstory: '',
-        inventory: [],
-        equipment,
-        materials: {
-            [UpgradeMaterial.TINH_THACH_HA_PHAM]: 20,
-            [UpgradeMaterial.LINH_HON_THACH]: 3,
-        },
-        consumables: {
-            [UpgradeConsumable.BUA_SAO]: 2,
-            [UpgradeConsumable.BOT_THAN_TUY]: 1,
-            [UpgradeConsumable.LINH_THU_PHU]: 5,
-            [UpgradeConsumable.LINH_THU_THUC]: 10,
-            [UpgradeConsumable.HON_AN_PHU]: 2,
-        },
-        skills,
-        activeEffects: [],
-        position: startPosition,
-        quests: [],
-        pets: [],
-        activePetId: null,
-        forgingProficiency: { level: 1, exp: 0, expToNextLevel: calculateForgingExpToNextLevel(1) },
-        learnedCultivationTechniques: [],
-        activeCultivationTechniqueId: null,
-        reputation: initialReputation,
-        sectId: null,
-        sectRank: null,
-        sectContributionPoints: 0,
-        npcAffinity: {},
-        metNpcs: [],
-        currentDungeonId: null,
-        linhCan: linhCan,
-        unallocatedStatPoints: 0,
-        retainers: [],
-        activeRetainerId: null,
-        servants: [],
+    // Enhanced monster stats scaling: (Base + Level * Growth) * RankMultiplier
+    const baseStats: BaseStats = {
+        STR: Math.floor((10 + level * 2.5) * rankMultiplier),
+        AGI: Math.floor((10 + level * 1.8) * rankMultiplier),
+        INT: Math.floor((10 + level * 1.5) * rankMultiplier),
+        SPI: Math.floor((10 + level * 1.5) * rankMultiplier),
+        CON: Math.floor((15 + level * 3.0) * rankMultiplier), // High CON for monster durability
+        DEX: Math.floor((10 + level * 1.8) * rankMultiplier),
     };
-};
 
-export const createMonster = async (
-    playerLevel: number, 
-    imageLibrary: ImageLibraryItem[], 
-    difficulty: Difficulty, 
-    worldState: WorldState, 
-    playerPosition: { x: number, y: number },
-    options?: { forcedRank?: MonsterRank, fixedLevel?: number, forcedName?: string }
-): Promise<Character> => {
-    const difficultyMods = DIFFICULTY_MODIFIERS[difficulty];
-    let rank: MonsterRank;
-
-    if (options?.forcedRank) {
-        rank = options.forcedRank;
-    } else {
-        const rankRoll = Math.random() * 100;
-        if (rankRoll < 70) rank = MonsterRank.Thường;
-        else if (rankRoll < 95) rank = MonsterRank.TinhAnh;
-        else rank = MonsterRank.ThủLĩnh;
-
-        // Difficulty modifier for rank
-        const difficultyRankRoll = Math.random();
-        if (difficultyMods.enemyRankUpChance > 0 && difficultyRankRoll < difficultyMods.enemyRankUpChance) {
-            if (rank === MonsterRank.Thường) rank = MonsterRank.TinhAnh;
-            else if (rank === MonsterRank.TinhAnh) rank = MonsterRank.ThủLĩnh;
-        } else if (difficultyMods.enemyRankUpChance < 0 && difficultyRankRoll < Math.abs(difficultyMods.enemyRankUpChance)) {
-            if (rank === MonsterRank.ThủLĩnh) rank = MonsterRank.TinhAnh;
-            else if (rank === MonsterRank.TinhAnh) rank = MonsterRank.Thường;
-        }
-    }
-    const rankModifiers = MONSTER_RANK_MODIFIERS[rank];
-
-    let name: string;
-    let monsterClass: string;
-    let imageUrl: string | undefined;
-    let imagePrompt: string | undefined;
-    let originalName: string;
-    let level: number;
-    const monsterLinhCan = generateLinhCan();
-
-    const currentTerrain = getTerrainFromPosition(playerPosition);
-    const levelRange = 5;
-    const suitableTemplates = worldState.bestiary.filter(m => 
-        (options?.forcedName ? m.name === options.forcedName : m.habitats.includes(currentTerrain)) &&
-        m.level &&
-        m.level >= Math.max(1, playerLevel - levelRange) &&
-        m.level <= playerLevel + levelRange
-    );
-
-    let template: (MonsterTemplate & { level: number }) | null = null;
-    if (suitableTemplates.length > 0) {
-        template = suitableTemplates[Math.floor(Math.random() * suitableTemplates.length)] as (MonsterTemplate & { level: number });
-    }
-    
-    if (template) {
-        level = options?.fixedLevel ?? template.level;
-        name = template.name;
-        originalName = template.name;
-        monsterClass = template.baseClass;
-        imageUrl = template.imageUrl;
-        imagePrompt = template.imagePrompt;
-        if (template.element && template.element !== Element.VO) {
-            monsterLinhCan.elements = [template.element];
-        }
-    } else {
-        level = options?.fixedLevel ?? Math.max(1, playerLevel + Math.floor(Math.random() * 5) - 2);
-        const primaryElement = monsterLinhCan.elements[0] || Element.VO;
-        monsterClass = `Quái Vật hệ ${primaryElement}`;
-        const monsterImages = imageLibrary.filter(img => img.isMonster);
-        name = `Yêu Thú lv ${level}`;
-
-        if (monsterImages.length > 0) {
-            const randomMonsterImage = monsterImages[Math.floor(Math.random() * monsterImages.length)];
-            imagePrompt = randomMonsterImage.description || `một yêu thú đáng sợ`;
-            imageUrl = randomMonsterImage.url;
-            try {
-                name = await generateMonsterName(imagePrompt, level);
-            } catch (error) {
-                console.error("AI monster name generation failed, using fallback:", error);
-                name = randomMonsterImage.description || `Yêu Thú lv ${level}`;
-            }
-        }
-        originalName = name;
-    }
-    
-    if (!imageUrl && imagePrompt) {
-        try {
-            console.log(`Generating image for monster: ${name} with prompt: "${imagePrompt}"`);
-            const imageResult = await generateImage(imagePrompt, false);
-            if (imageResult.imageUrl) {
-                imageUrl = imageResult.imageUrl;
-            } else {
-                 console.warn("AI image generation failed for monster:", imageResult.error);
-            }
-        } catch (error) {
-            console.error("Error during AI image generation for monster:", error);
-        }
-    }
-
-    const baseStats = calculateBaseStats(level, monsterClass);
-    let skills: Skill[] = [];
-    const numBaseSkills = Math.floor(level / 10) + (difficulty === Difficulty.HARD ? 1 : 0) + (difficulty === Difficulty.HELL ? 2 : 0);
-    const totalActiveSkills = numBaseSkills + rankModifiers.bonusActiveSkills;
-    const totalPassiveSkills = rankModifiers.bonusPassiveSkills;
-
-    for (let i = 0; i < totalActiveSkills; i++) {
-        try {
-            const skill = await generateSkill(monsterClass, level, getRealmForLevel(level).name, SkillType.ACTIVE, false, difficulty);
-            skills.push(skill);
-        } catch (error) {
-            console.error(`Failed to generate active skill ${i+1} for monster`, error);
-        }
-    }
-     for (let i = 0; i < totalPassiveSkills; i++) {
-        try {
-            const skill = await generateSkill(monsterClass, level, getRealmForLevel(level).name, SkillType.PASSIVE, false, difficulty);
-            skills.push(skill);
-        } catch (error) {
-            console.error(`Failed to generate passive skill ${i+1} for monster`, error);
-        }
-    }
-
-
-    let derivedStats = calculateDerivedStats(level, baseStats, {}, skills, [], null, []);
-
-    // Apply difficulty and rank stat multipliers
-    const totalStatMultiplier = difficultyMods.monsterStatMultiplier * rankModifiers.statMultiplier;
-    derivedStats[Stat.HP] = Math.floor(derivedStats[Stat.HP] * totalStatMultiplier);
-    derivedStats[Stat.ATK] = parseFloat((derivedStats[Stat.ATK] * totalStatMultiplier).toFixed(2));
-    derivedStats[Stat.MATK] = parseFloat((derivedStats[Stat.MATK] * totalStatMultiplier).toFixed(2));
-    derivedStats[Stat.DEF] = parseFloat((derivedStats[Stat.DEF] * totalStatMultiplier).toFixed(2));
-    
-    const humanoidClasses = ["Ma Vật", "Linh Hồn", "Dị Thể AI", "Ma Thú", "Thánh Trí AI", "Dị Thể Không Gian"];
-    const isHumanoid = humanoidClasses.includes(monsterClass);
-
-    const monsterCharacter: Character = {
+    const derived = calculateDerivedStats({
         id: crypto.randomUUID(),
-        name: rank === MonsterRank.Thường ? name : `[${rank}] ${name}`,
-        originalName,
-        playerClass: monsterClass,
+        name: template.name,
         level,
-        exp: 0,
-        expToNextLevel: Infinity,
-        realm: getRealmForLevel(level),
         baseStats,
-        derivedStats,
-        currentHp: derivedStats.HP,
-        currentMp: derivedStats.MP,
-        inventory: [],
         equipment: {},
+        skills: [], // Will be populated later
+    } as any);
+    
+    // Boost Boss HP further
+    if (template.name === 'Nguyên Chủ Thánh Trí' || template.rank === MonsterRank.ThủLĩnh) {
+        derived.HP *= 3;
+    }
+
+    const monster: Character = {
+        id: crypto.randomUUID(),
+        name: template.name,
+        playerClass: template.baseClass,
+        level: level,
+        exp: 0,
+        expToNextLevel: 100, // Not relevant for monsters
+        realm: { name: 'Yêu Thú', level: 1 },
+        baseStats,
+        derivedStats: derived,
+        currentHp: derived.HP,
+        currentMp: derived.MP,
+        backstory: template.description,
+        equipment: {},
+        inventory: [],
+        skills: ALL_SKILLS.filter(s => template.skills?.includes(s.id)),
+        activeEffects: [],
+        position: { x: 0, y: 0 },
+        isHumanoid: ['Ma Thú', 'Ma Vật'].includes(template.baseClass), // Example logic
+        isBoss: template.name === 'Nguyên Chủ Thánh Trí',
+        pets: [],
+        retainers: [],
+        servants: [],
+        metNpcs: [],
+        quests: [],
+        reputation: {},
         materials: {},
         consumables: {},
-        skills,
-        activeEffects: [],
-        imageUrl,
-        position: {x: -1, y: -1},
-        quests: [],
-        pets: [],
-        activePetId: null,
-        forgingProficiency: { level: 1, exp: 0, expToNextLevel: 100 },
-        learnedCultivationTechniques: [],
-        activeCultivationTechniqueId: null,
-        reputation: {},
-        sectId: null,
-        sectRank: null,
         sectContributionPoints: 0,
-        npcAffinity: {},
-        metNpcs: [],
-        rank,
-        currentDungeonId: null,
-        linhCan: monsterLinhCan,
-        retainers: [],
-        activeRetainerId: null,
-        servants: [],
-        isHumanoid,
+        learnedCultivationTechniques: [],
+        rank: rank,
+        imageUrl: template.imageUrl
     };
-    
-    return monsterCharacter;
+
+    return monster;
 };
 
-export const createBoss = async (playerLevel: number, imageLibrary: ImageLibraryItem[], difficulty: Difficulty, worldState: WorldState, playerPosition: { x: number, y: number }, forcedBossName?: string): Promise<Character> => {
-    
-    const bossName = forcedBossName || 'Nguyên Chủ Thánh Trí';
-    const bossTemplate = worldState.bestiary.find(m => m.name === bossName);
+// --- Upgrade Logic ---
 
-    if (bossTemplate && bossName in BOSS_DEFINITIONS) {
-        const bossDataDefinition = BOSS_DEFINITIONS[bossName as keyof typeof BOSS_DEFINITIONS];
+export const getUpgradeCost = (item: Item): { material: UpgradeMaterial, amount: number } | null => {
+    if (item.upgradeLevel >= item.maxUpgrade) return null;
+    
+    const level = item.level;
+    let material: UpgradeMaterial;
+    if (level < 20) material = UpgradeMaterial.TINH_THACH_HA_PHAM;
+    else if (level < 50) material = UpgradeMaterial.TINH_THACH_TRUNG_PHAM;
+    else material = UpgradeMaterial.TINH_THACH_CAO_PHAM;
+    
+    const amount = (item.upgradeLevel + 1) * 2;
+    
+    return { material, amount };
+};
+
+export const processItemUpgrade = (item: Item): Item => {
+    // IMPORTANT: Use deep shallow copy for bonusStats to avoid mutating the original item reference in preview
+    const newItem = { 
+        ...item,
+        bonusStats: { ...item.bonusStats } 
+    };
+    newItem.upgradeLevel += 1;
+    
+    // Increase stats
+    // Example formula: Each level adds 10% of base stats to bonus stats (cumulative)
+    for (const stat in newItem.baseStats) {
+        const key = stat as Stat;
+        const baseVal = newItem.baseStats[key] || 0;
+        // Add 10% of base stat per upgrade level
+        const bonusAdd = Math.ceil(baseVal * 0.1); 
         
-        const bossBase = await createMonster(
-            playerLevel, imageLibrary, difficulty, worldState, playerPosition,
-            { forcedRank: MonsterRank.HùngChủ, fixedLevel: bossTemplate.level || 70, forcedName: bossName }
-        );
-        bossBase.name = bossTemplate.name; // Overwrite random name
-        bossBase.isBoss = true;
-
-        const firstPhase = bossDataDefinition.phases[0];
-        bossBase.bossData = {
-            phases: bossDataDefinition.phases,
-            currentPhaseIndex: 0,
-            minions: [],
-        };
-        bossBase.skills = BOSS_SKILLS.filter(s => firstPhase.skills.includes(s.id));
-        bossBase.isImmune = firstPhase.isImmuneWhileMinionsExist;
-        bossBase.name = `${bossBase.name} - ${firstPhase.name}`;
-        
-        return bossBase;
+        newItem.bonusStats[key] = (newItem.bonusStats[key] || 0) + bonusAdd;
     }
 
-    // Fallback to old boss logic
-    const bossLevel = Math.max(5, playerLevel + Math.floor(Math.random() * 4) + 3);
-    const boss = await createMonster(
-        playerLevel, 
-        imageLibrary, 
-        difficulty, 
-        worldState, 
-        playerPosition, 
-        { forcedRank: MonsterRank.HùngChủ, fixedLevel: bossLevel }
-    );
-    boss.isBoss = true;
-    return boss;
-};
-
-
-export const gainExp = async (character: Character, expGained: number): Promise<{ char: Character, leveledUp: boolean, messages: string[] }> => {
-    let newChar = { ...character };
-    const oldRealmName = character.realm.name;
-    const oldLevel = character.level;
-    newChar.exp += expGained;
-    let leveledUp = false;
-    const messages: string[] = [];
-    const isCustomClass = !Object.values(PlayerClass).includes(newChar.playerClass as PlayerClass);
-
-    // Correctly handle multiple level-ups
-    while (newChar.exp >= newChar.expToNextLevel) {
-        newChar.exp -= newChar.expToNextLevel;
-        newChar.level++;
-        newChar.expToNextLevel = calculateExpToNextLevel(newChar.level); // Recalculate for next iteration
-        leveledUp = true;
-        messages.push(`✨ Chúc mừng! Bạn đã đạt đến cấp ${newChar.level}!`);
-    }
-
-    if (leveledUp) {
-        // Grant new skills and stat points for custom classes
-        if (isCustomClass) {
-            const levelsGained = newChar.level - oldLevel;
-            const pointsGained = levelsGained * CUSTOM_CLASS_POINTS_PER_LEVEL;
-            newChar.unallocatedStatPoints = (newChar.unallocatedStatPoints || 0) + pointsGained;
-            if(pointsGained > 0) {
-                messages.push(`💪 Bạn nhận được ${pointsGained} điểm tiềm năng để phân bổ!`);
-            }
-
-            for (let lvl = oldLevel + 1; lvl <= newChar.level; lvl++) {
-                if (lvl % 5 === 0) {
-                     try {
-                        const newSkill = await generateSkill(newChar.playerClass, lvl, newChar.realm.name, SkillType.ACTIVE, false, Difficulty.NORMAL);
-                        newChar.skills.push(newSkill);
-                        messages.push(`🔥 Bằng kinh nghiệm chiến đấu, bạn đã tự sáng tạo ra chiêu thức mới: [${newSkill.name}]!`);
-                     } catch (error) {
-                        console.error("Failed to generate custom class skill:", error);
-                     }
-                }
-            }
-        }
-
-        newChar = await fullyUpdateCharacter(newChar);
-        // BUG FIX: Restore HP and MP on level up
-        newChar.currentHp = newChar.derivedStats.HP;
-        newChar.currentMp = newChar.derivedStats.MP;
-        messages.push(`HP và MP đã được phục hồi hoàn toàn.`);
-        
-        if (newChar.realm.name !== oldRealmName) {
-            messages.push(`⚡ Cảnh giới đột phá! Bạn đã tiến vào ${newChar.realm.name}!`);
-            try {
-                // Generate a special realm skill
-                const realmSkill = await generateSkill(newChar.playerClass, newChar.level, newChar.realm.name, SkillType.PASSIVE, true, Difficulty.NORMAL);
-                newChar.skills.push(realmSkill);
-                newChar = await fullyUpdateCharacter(newChar); // Recalculate stats with the new skill
-                messages.push(`🔥 Bạn đã lĩnh ngộ được thần thông cảnh giới mới: [${realmSkill.name}]!`);
-            } catch (error) {
-                console.error("Failed to generate realm skill:", error);
-                messages.push("Bạn cảm thấy sức mạnh của mình tăng lên nhưng chưa thể nắm bắt được thần thông mới.");
-            }
-        }
-    } else {
-        newChar.expToNextLevel = calculateExpToNextLevel(newChar.level);
-    }
-    
-    return {char: newChar, leveledUp, messages};
-};
-
-export const fullyUpdateCharacter = async (character: Character): Promise<Character> => {
-    const newChar = { 
-        ...character,
-        classDefinition: character.classDefinition || undefined,
-        skills: character.skills || [],
-        activeEffects: character.activeEffects || [],
-        position: character.position || { x: 2048, y: 2048 },
-        quests: character.quests || [],
-        pets: character.pets || [],
-        activePetId: character.activePetId || null,
-        forgingProficiency: character.forgingProficiency || { level: 1, exp: 0, expToNextLevel: 100 },
-        learnedCultivationTechniques: (character.learnedCultivationTechniques || []).map(tech => ({
-            ...tech,
-            type: tech.type || CultivationTechniqueType.TAM_PHAP, // Ensure every technique has a type for filtering
-        })),
-        activeCultivationTechniqueId: character.activeCultivationTechniqueId || null,
-        reputation: character.reputation || {},
-        sectId: character.sectId || null,
-        sectRank: character.sectRank || null,
-        sectContributionPoints: character.sectContributionPoints || 0,
-        npcAffinity: character.npcAffinity || {},
-        metNpcs: character.metNpcs || [],
-        retainers: character.retainers || [],
-        activeRetainerId: character.activeRetainerId || null,
-        servants: character.servants || [],
-    };
-    newChar.realm = getRealmForLevel(newChar.level);
-    
-    const predefinedSkills = getSkillsForLevel(newChar.level, newChar.playerClass);
-    const existingPredefinedIds = new Set(newChar.skills.map(s => s.id));
-    predefinedSkills.forEach(ps => {
-        if (!existingPredefinedIds.has(ps.id)) {
-            newChar.skills.push(ps);
-        }
-    });
-
-    newChar.baseStats = calculateBaseStats(newChar.level, newChar.playerClass, newChar.classDefinition);
-    newChar.derivedStats = calculateDerivedStats(newChar.level, newChar.baseStats, newChar.equipment, newChar.skills, newChar.learnedCultivationTechniques, newChar.activeCultivationTechniqueId, newChar.servants);
-    newChar.expToNextLevel = calculateExpToNextLevel(newChar.level);
-    
-    // Cap HP and MP to new max values
-    newChar.currentHp = Math.min(character.currentHp, newChar.derivedStats.HP);
-    newChar.currentMp = Math.min(character.currentMp, newChar.derivedStats.MP);
-
-    return newChar;
-};
-
-export const generateItem = async (itemLevel: number, character: Character, forcedRarity?: Rarity, forcedType?: ItemType): Promise<Item> => {
-    let rarity: Rarity;
-    if (forcedRarity) {
-        rarity = forcedRarity;
-    } else {
-        const rarityRoll = Math.random() * 100;
-        if (rarityRoll < 60) rarity = Rarity.COMMON;
-        else if (rarityRoll < 85) rarity = Rarity.UNCOMMON;
-        else if (rarityRoll < 95) rarity = Rarity.RARE;
-        else if (rarityRoll < 99) rarity = Rarity.EPIC;
-        else if (rarityRoll < 99.9) rarity = Rarity.LEGENDARY;
-        else rarity = Rarity.MYTHIC;
-    }
-
-    const rarityInfo = RARITY_DATA[rarity];
-    const itemType = forcedType || AVAILABLE_ITEM_TYPES[Math.floor(Math.random() * AVAILABLE_ITEM_TYPES.length)];
-
-    // Handle unique AI-generated items
-    if (itemType === ItemType.CULTIVATION_MANUAL) {
-        const techniqueDetails = await generateCultivationTechniqueDetails(character);
-        return {
-            id: crypto.randomUUID(),
-            name: `Công Pháp: ${techniqueDetails.name}`,
-            description: techniqueDetails.description,
-            type: itemType,
-            level: itemLevel,
-            rarity,
-            baseStats: {},
-            bonusStats: {},
-            upgradeLevel: 0,
-            maxUpgrade: 0,
-            history: [],
-            evolved: false,
-            cultivationTechniqueDetails: techniqueDetails
-        };
-    }
-
-    if (itemType === ItemType.SKILL_BOOK) {
-        const skillDetails = await generateSkillForSkillBook(character);
-        return {
-            id: crypto.randomUUID(),
-            name: `Sách Kỹ Năng: ${skillDetails.name}`,
-            description: `Một cuốn sách cổ chứa đựng bí thuật [${skillDetails.name}].`,
-            type: itemType,
-            level: itemLevel,
-            rarity,
-            baseStats: {},
-            bonusStats: {},
-            upgradeLevel: 0,
-            maxUpgrade: 0,
-            history: [],
-            evolved: false,
-            skillDetails
-        };
-    }
-
-    // Handle standard equipment
-    let baseStats: { [key: string]: number } = {};
-    switch (itemType) {
-        case ItemType.WEAPON:
-            const isPhysical = Math.random() < 0.7;
-            if (isPhysical) {
-                baseStats[Stat.ATK] = itemLevel * 2.2 + 5;
-            } else {
-                baseStats[Stat.MATK] = itemLevel * 2.5 + 5;
-            }
-            break;
-        case ItemType.ARMOR:
-            baseStats[Stat.DEF] = itemLevel * 1.8 + 8;
-            baseStats[Stat.HP] = itemLevel * 10;
-            break;
-        case ItemType.RING:
-            const ringStats = [Stat.CRIT_RATE, Stat.STR, Stat.AGI, Stat.INT, Stat.DEX];
-            const chosenRingStat = ringStats[Math.floor(Math.random() * ringStats.length)];
-            baseStats[chosenRingStat] = (chosenRingStat === Stat.CRIT_RATE) ? itemLevel * 0.2 + 1 : itemLevel * 1.5 + 3;
-            break;
-        case ItemType.AMULET:
-            const amuletStats = [Stat.HP, Stat.MP, Stat.CON, Stat.PENETRATION];
-            const chosenAmuletStat = amuletStats[Math.floor(Math.random() * amuletStats.length)];
-            baseStats[chosenAmuletStat] = chosenAmuletStat === Stat.HP ? itemLevel * 15 : chosenAmuletStat === Stat.MP ? itemLevel * 10 : itemLevel * 1.5 + 2;
-            break;
-    }
-    // Apply rarity multiplier to all base stats
-    for (const key in baseStats) {
-        baseStats[key] = Math.floor(baseStats[key] * rarityInfo.multiplier);
-    }
-    
-    let bonusStats: { [key: string]: number } = {};
-    let itemName = `${rarity} ${itemType}`;
-    let itemDescription: string | undefined;
-    let setId: string | undefined;
-    let setName: string | undefined;
-
-    // Preliminary item for AI context
-    const prelimItem: Item = {
-        id: 'temp', name: itemName, type: itemType, level: itemLevel, rarity, baseStats, bonusStats: {},
-        upgradeLevel: 0, maxUpgrade: rarityInfo.maxUpgrade, history: [], evolved: false,
-    };
-
-    // Generate name and description first for better AI context
-    if (rarity >= Rarity.RARE) {
-        try {
-            const details = await generateItemDetails(prelimItem);
-            itemName = details.name;
-            itemDescription = details.description;
-        } catch (e) {
-            console.error("AI item detail generation failed, using fallback.", e);
-        }
-    }
-
-    prelimItem.name = itemName;
-    prelimItem.description = itemDescription;
-    
-    const isSetItem = [Rarity.RARE, Rarity.EPIC, Rarity.LEGENDARY, Rarity.MYTHIC].includes(rarity) && Math.random() < 0.20;
-    if (isSetItem && !itemDescription) { // If it's a set item but had no AI description, try to get a set name
-        const setKeys = Object.keys(ITEM_SETS);
-        const randomSetId = setKeys[Math.floor(Math.random() * setKeys.length)];
-        const chosenSet = ITEM_SETS[randomSetId];
-        if (chosenSet.items[itemType]) {
-            setId = chosenSet.id;
-            setName = chosenSet.name;
-            prelimItem.name = chosenSet.items[itemType]!; // Overwrite name with set item name
-        }
-    }
-    prelimItem.setId = setId;
-    prelimItem.setName = setName;
-    
-
-    // Now, generate bonus stats with full context
-    const numBonusStats = rarityInfo.bonusStats;
-    if (numBonusStats > 0) {
-        try {
-            bonusStats = await generateBonusStatsForItem(prelimItem, numBonusStats);
-        } catch (e) {
-            console.error("AI bonus stat generation failed, using fallback random generation.", e);
-            // Fallback logic
-            const availableBonuses = Object.values(Stat).filter(s => ![Stat.HP, Stat.MP, Stat.ATK, Stat.MATK, Stat.DEF, Stat.ATK_SPEED].includes(s));
-            for (let i = 0; i < numBonusStats; i++) {
-                if(availableBonuses.length === 0) break;
-                const randIndex = Math.floor(Math.random() * availableBonuses.length);
-                const selectedStat = availableBonuses.splice(randIndex, 1)[0];
-                const value = Math.max(1, Math.floor((itemLevel / 4 + 1) * rarityInfo.multiplier * (0.8 + Math.random() * 0.4)));
-                bonusStats[selectedStat] = value;
-            }
-        }
-    }
-
-    return {
-        ...prelimItem,
-        id: crypto.randomUUID(),
-        bonusStats,
-    };
-};
-
-export const performAttack = (attacker: Combatant, defender: Combatant): AttackResult => {
-    const result: AttackResult = {
-        damage: 0,
-        messages: [],
-        crit: false,
-        miss: false,
-        lifestealAmount: 0,
-        appliedEffects: [],
-    };
-
-    const hitRoll = Math.random() * 100;
-    const chanceToHit = Math.max(10, Math.min(95, 50 + attacker.derivedStats[Stat.ACCURACY] - defender.derivedStats[Stat.EVASION]));
-
-    if (hitRoll > chanceToHit) {
-        result.miss = true;
-        result.messages.push(`${attacker.name} tấn công nhưng ${defender.name} đã né được!`);
-        return result;
-    }
-    
-    const attackerClass = 'playerClass' in attacker ? attacker.playerClass : (attacker as Pet).monsterClass;
-    result.crit = Math.random() * 100 < attacker.derivedStats[Stat.CRIT_RATE];
-    const baseDamage = attackerClass.includes('Pháp Tu') ? attacker.derivedStats.MATK : attacker.derivedStats[Stat.ATK];
-    const critMultiplier = result.crit ? 1.5 : 1;
-
-    const penetrationPercent = attacker.derivedStats[Stat.PENETRATION] / 100;
-    const effectiveDef = Math.max(0, defender.derivedStats[Stat.DEF] * (1 - penetrationPercent));
-    const damageReductionPercent = effectiveDef / (effectiveDef + attacker.level * 20);
-    let finalDamage = Math.max(1, (baseDamage * critMultiplier) * (1 - damageReductionPercent));
-
-    result.damage = Math.floor(finalDamage);
-
-    if (result.crit) {
-        result.messages.push(`💥 ĐÒN CHÍ MẠNG! ${attacker.name} tấn công ${defender.name}, gây ${result.damage} sát thương!`);
-    } else {
-        result.messages.push(`${attacker.name} tấn công ${defender.name}, gây ${result.damage} sát thương.`);
-    }
-
-    if ('equipment' in attacker) {
-         // Handle Lifesteal from stats and affixes
-        let lifestealPercentage = (attacker.derivedStats[Stat.LIFESTEAL] || 0) / 100;
-
-        const weapon = attacker.equipment[ItemType.WEAPON];
-        if (weapon?.affix?.id === AffixId.LIFESTEAL) {
-            lifestealPercentage += 0.10; // 10% lifesteal from affix
-        }
-        
-        if (lifestealPercentage > 0) {
-            const healed = Math.floor(result.damage * lifestealPercentage);
-            if (healed > 0) {
-                result.lifestealAmount = healed;
-                result.messages.push(`🩸 ${attacker.name} được Hút Máu hồi ${healed} HP.`);
-            }
-        }
-
-        // Handle other Affixes
-        if (weapon?.affix?.id === AffixId.ECHO_DAMAGE) {
-            const echoDmg = Math.floor(result.damage * 0.20); // 20% echo
-            result.damage += echoDmg;
-            result.messages.push(`🔊 Sát thương Vang Vọng gây thêm ${echoDmg} sát thương!`);
-        }
-    }
-
-
-    return result;
-};
-
-export const useSkill = (attacker: Combatant, defender: Combatant, skill: Skill): AttackResult => {
-    const result: AttackResult = {
-        damage: 0,
-        messages: [`${attacker.name} sử dụng kỹ năng [${skill.name}]!`],
-        crit: false,
-        miss: false,
-        lifestealAmount: 0,
-        appliedEffects: []
-    };
-
-    let totalDamage = 0;
-
-    for (const effect of skill.effects) {
-        if (effect.chance && Math.random() * 100 > effect.chance) {
-            continue; // Effect did not trigger
-        }
-
-        if (effect.target === TargetType.ENEMY) {
-            // Apply effect to defender
-            const effectResult = applyEffectToTarget(effect, skill, attacker, defender);
-            totalDamage += effectResult.damage;
-            result.messages.push(...effectResult.messages);
-            result.appliedEffects.push(...effectResult.appliedEffects);
-        } else if (effect.target === TargetType.SELF) {
-            // Apply effect to attacker
-             const effectResult = applyEffectToTarget(effect, skill, attacker, attacker); // Target is self
-             result.messages.push(...effectResult.messages);
-             result.appliedEffects.push(...effectResult.appliedEffects);
-        }
-    }
-    
-    result.damage = totalDamage;
-    return result;
-};
-
-
-const applyEffectToTarget = (effect: SkillEffect, skill: Skill, Caster: Combatant, Target: Combatant): { damage: number, messages: string[], appliedEffects: ActiveEffect[] } => {
-    let damage = 0;
-    const messages: string[] = [];
-    const appliedEffects: ActiveEffect[] = [];
-    const isSelfTarget = Caster.id === Target.id;
-    const casterClass = 'playerClass' in Caster ? Caster.playerClass : (Caster as Pet).monsterClass;
-
-    switch (effect.type) {
-        case SkillEffectType.DAMAGE: {
-            const hitRoll = Math.random() * 100;
-            const chanceToHit = Math.max(10, Math.min(95, 80 + Caster.derivedStats[Stat.ACCURACY] - Target.derivedStats[Stat.EVASION]));
-            if (hitRoll > chanceToHit) {
-                messages.push(`Nhưng ${Target.name} đã né được!`);
-                break;
-            }
-
-            const isCrit = Math.random() * 100 < Caster.derivedStats[Stat.CRIT_RATE];
-            const baseDamage = casterClass.includes('Pháp Tu') ? Caster.derivedStats.MATK : Caster.derivedStats.ATK;
-            const critMultiplier = isCrit ? 1.5 : 1;
-            const powerMultiplier = effect.powerMultiplier || 1.0;
-            
-            const skillPenetrationBonus = skill.id === 'kiemtu_active_1' ? 25 : 0; // Đâm Lén ignores 25% armor
-            const totalPenetrationPercent = Math.min(100, Caster.derivedStats[Stat.PENETRATION] + skillPenetrationBonus);
-            const effectiveDef = Math.max(0, Target.derivedStats.DEF * (1 - totalPenetrationPercent / 100));
-            const damageReductionPercent = effectiveDef / (effectiveDef + Caster.level * 20);
-            const finalDamage = Math.max(1, (baseDamage * powerMultiplier * critMultiplier) * (1 - damageReductionPercent));
-            
-            damage = Math.floor(finalDamage);
-            const critText = isCrit ? '💥 ĐÒN CHÍ MẠNG! ' : '';
-            messages.push(`${critText}Kỹ năng gây ${damage} sát thương lên ${Target.name}.`);
-            break;
-        }
-        case SkillEffectType.HEAL: {
-            const baseHeal = Caster.derivedStats.MATK;
-            const powerMultiplier = effect.powerMultiplier || 1.0;
-            const healedAmount = Math.floor(baseHeal * powerMultiplier + (effect.value || 0));
-            damage = -healedAmount; // Negative damage represents healing
-            messages.push(`✨ ${Target.name} được hồi ${healedAmount} HP.`);
-            break;
-        }
-        case SkillEffectType.BUFF:
-        case SkillEffectType.DEBUFF:
-        case SkillEffectType.DOT:
-        case SkillEffectType.HOT:
-        case SkillEffectType.STUN: 
-        case SkillEffectType.DISABLE_SKILL: {
-            const newActiveEffect: ActiveEffect = {
-                id: crypto.randomUUID(),
-                sourceSkillName: skill.name,
-                effect: effect,
-                remainingTurns: effect.duration || 1,
-            };
-            appliedEffects.push(newActiveEffect);
-            messages.push(`🌀 ${Target.name} bị ảnh hưởng bởi [${effect.description}].`);
-            break;
-        }
-    }
-    return { damage, messages, appliedEffects };
-};
-
-
-export const getActiveSetBonuses = (equipment: Character['equipment']): { setName: string, pieceCount: number, totalPieces: number, bonuses: { bonus: SetBonus, active: boolean }[] }[] => {
-    const equippedSets: { [key: string]: number } = {};
-    Object.values(equipment).forEach(item => {
-        if (item?.setId) {
-            equippedSets[item.setId] = (equippedSets[item.setId] || 0) + 1;
-        }
-    });
-
-    const result = Object.entries(equippedSets).map(([setId, count]) => {
-        const setInfo = ITEM_SETS[setId];
-        if (!setInfo) return null;
-
-        return {
-            setName: setInfo.name,
-            pieceCount: count,
-            totalPieces: Object.keys(setInfo.items).length,
-            bonuses: setInfo.bonuses.map(bonus => ({
-                bonus: bonus,
-                active: count >= bonus.pieces
-            })).sort((a,b) => a.bonus.pieces - b.bonus.pieces)
-        };
-    });
-
-    return result.filter(r => r !== null) as Exclude<typeof result[0], null>[];
-};
-
-export const getDismantleResult = (item: Item): { [key in UpgradeMaterial]?: number } => {
-    const materials: { [key in UpgradeMaterial]?: number } = {};
-    const { rarity, upgradeLevel } = item;
-
-    let baseMaterial: UpgradeMaterial;
-    let baseAmount: number;
-
-    switch (rarity) {
-        case Rarity.COMMON:
-            baseMaterial = UpgradeMaterial.TINH_THACH_HA_PHAM;
-            baseAmount = 1;
-            break;
-        case Rarity.UNCOMMON:
-            baseMaterial = UpgradeMaterial.TINH_THACH_HA_PHAM;
-            baseAmount = 2;
-            break;
-        case Rarity.RARE:
-            baseMaterial = UpgradeMaterial.TINH_THACH_TRUNG_PHAM;
-            baseAmount = 1;
-            break;
-        case Rarity.EPIC:
-            baseMaterial = UpgradeMaterial.TINH_THACH_TRUNG_PHAM;
-            baseAmount = 2;
-            break;
-        case Rarity.LEGENDARY:
-            baseMaterial = UpgradeMaterial.TINH_THACH_CAO_PHAM;
-            baseAmount = 1;
-            break;
-        case Rarity.MYTHIC:
-            baseMaterial = UpgradeMaterial.TINH_THACH_CAO_PHAM;
-            baseAmount = 2;
-            break;
-        default:
-            return {};
-    }
-
-    // Add materials based on upgrade level
-    const upgradeBonus = Math.floor(upgradeLevel * 1.2);
-    materials[baseMaterial] = (materials[baseMaterial] || 0) + baseAmount + upgradeBonus;
-    
-    // Chance to get back Soul Stones from epic+ items or high upgrades
-    if ((rarity >= Rarity.EPIC && Math.random() < 0.15) || (upgradeLevel >= 10 && Math.random() < 0.25)) {
-        materials[UpgradeMaterial.LINH_HON_THACH] = (materials[UpgradeMaterial.LINH_HON_THACH] || 0) + 1;
-    }
-
-    return materials;
-};
-
-// --- Pet Logic ---
-
-export const convertMonsterToPet = (monster: Character): Omit<Pet, 'loyaltyDescription' | 'oneWordStatus'> => {
-    const petLevel = Math.max(1, Math.floor(monster.level * 0.9)); // Start at 90% of monster level
-    const baseStats = calculateBaseStats(petLevel, monster.playerClass);
-    // Pets have slightly simpler skills or a subset
-    const petSkills = monster.skills.filter(s => s.levelRequired <= petLevel);
-    // Pets have no MP, their skill usage is based on chance
-    const derivedStats = calculateDerivedStats(petLevel, baseStats, {}, petSkills, [], null, []);
-    derivedStats.MP = 0;
-
-    return {
-        id: crypto.randomUUID(),
-        name: monster.name,
-        originalName: monster.originalName || monster.name,
-        monsterClass: monster.playerClass,
-        level: petLevel,
-        exp: 0,
-        expToNextLevel: calculateExpToNextLevel(petLevel),
-        baseStats,
-        derivedStats,
-        currentHp: derivedStats.HP,
-        skills: petSkills,
-        imageUrl: monster.imageUrl,
-        loyalty: 50, // Start at neutral loyalty
-        status: PetStatus.IDLE,
-        activeEffects: [],
-        isEvolved: false,
-        evolutionLevel: 0,
-        linhCan: monster.linhCan,
-    };
-};
-
-export const fullyUpdatePet = (pet: Pet): Pet => {
-    const newPet = { ...pet };
-    // Recalculate everything based on level
-    newPet.baseStats = calculateBaseStats(newPet.level, newPet.monsterClass);
-    const derivedStats = calculateDerivedStats(newPet.level, newPet.baseStats, {}, newPet.skills, [], null, []);
-    derivedStats.MP = 0; // Pets don't use MP
-
-    // Apply loyalty bonus to derived stats
-    const loyaltyBonus = 1 + (newPet.loyalty / 100) * 0.25; // Up to 25% bonus at 100 loyalty
-    derivedStats.HP = Math.floor(derivedStats.HP * loyaltyBonus);
-    derivedStats.ATK = parseFloat((derivedStats.ATK * loyaltyBonus).toFixed(2));
-    derivedStats.MATK = parseFloat((derivedStats.MATK * loyaltyBonus).toFixed(2));
-    derivedStats[Stat.DEF] = parseFloat((derivedStats[Stat.DEF] * loyaltyBonus).toFixed(2));
-    
-    newPet.derivedStats = derivedStats;
-    newPet.expToNextLevel = calculateExpToNextLevel(newPet.level);
-    newPet.currentHp = Math.min(pet.currentHp, newPet.derivedStats.HP); // Cap HP
-    return newPet;
-};
-
-export const gainExpForPet = (pet: Pet, expGained: number): { pet: Pet, leveledUp: boolean, messages: string[] } => {
-    let newPet = { ...pet };
-    newPet.exp += expGained;
-    let leveledUp = false;
-    const messages: string[] = [];
-
-    while (newPet.exp >= newPet.expToNextLevel) {
-        newPet.exp -= newPet.expToNextLevel;
-        newPet.level++;
-        leveledUp = true;
-        messages.push(`🐾 Thú cưng [${newPet.name}] đã đạt đến cấp ${newPet.level}!`);
-    }
-
-    if (leveledUp) {
-        newPet = fullyUpdatePet(newPet);
-        messages.push(`HP của ${newPet.name} đã được phục hồi.`);
-    }
-
-    return { pet: newPet, leveledUp, messages };
-};
-
-// --- Companion Logic ---
-export const convertEnemyToServant = (enemy: Character): Servant => {
-    return {
-        id: crypto.randomUUID(),
-        name: `Nô Bộc: ${enemy.originalName || enemy.name}`,
-        originalName: enemy.originalName || enemy.name,
-        level: enemy.level,
-        characterClass: enemy.playerClass,
-        imageUrl: enemy.imageUrl,
-        task: ServantTask.RESTING,
-    };
-};
+    return newItem;
+}

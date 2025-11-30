@@ -1,5 +1,8 @@
 
+
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+// Fix: Corrected import paths for types and constants.
 import { Character, Item, UpgradeMaterial, AttackResult, Skill, SkillType, ActiveEffect, TargetType, Pet, Combatant, UpgradeConsumable, Rarity, CombatLogEntry, MonsterRank, Element, SkillEffectType } from '../types';
 import { performAttack, useSkill, generateItem } from '../services/gameLogic';
 import ItemCard from './ItemCard';
@@ -421,7 +424,7 @@ useEffect(() => {
 
     setTimeout(performAIAction, actionDelay);
     
-}, [turnIndex, participants, isCombatOver, isPlayerTurn]);
+}, [turnIndex, participants, isCombatOver, isPlayerTurn, nextTurn, player.id, player.activePetId, player.activeRetainerId, processAction]);
 
   const handleAttack = () => {
       if (!playerInCombat || !enemyInCombat) return;

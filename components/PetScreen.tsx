@@ -1,8 +1,5 @@
 
-
-
-
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Pet, PetStatus, UpgradeConsumable, UpgradeMaterial, LogType } from '../types';
 import PetSheet from './PetSheet';
 import { useGame } from '../contexts/GameContext';
@@ -10,10 +7,21 @@ import { PET_EVOLUTION_COST, PET_EVOLUTION_LEVEL } from '../constants';
 
 const PetScreen: React.FC = () => {
     const { character, handleSetActivePet, handleReleasePet, handleRenamePet, handleFeedPet, handleEvolvePet, setOneTimeMessages } = useGame();
-    const [selectedPetId, setSelectedPetId] = useState<string | null>(character?.activePetId || null);
+    // Initialize state properly based on context or default
+    const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    const selectedPet = character?.pets.find(p => p.id === selectedPetId) || null;
+    // Effect to set initial selected pet if none selected but one exists
+    useEffect(() => {
+        if (!selectedPetId && character && character.pets.length > 0) {
+            setSelectedPetId(character.activePetId || character.pets[0].id);
+        }
+    }, [character, selectedPetId]);
+
+    // Safety check if character is null
+    if (!character) return null;
+
+    const selectedPet = character.pets.find(p => p.id === selectedPetId) || null;
 
     const handleSelectPet = (pet: Pet) => {
         setSelectedPetId(pet.id);
@@ -48,8 +56,6 @@ const PetScreen: React.FC = () => {
         }
         setIsLoading(false);
     }
-
-    if (!character) return null;
 
     const canEvolve = useMemo(() => {
         if (!selectedPet || selectedPet.isEvolved || selectedPet.level < PET_EVOLUTION_LEVEL) return false;

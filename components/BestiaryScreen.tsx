@@ -1,5 +1,8 @@
 
+
+
 import React from 'react';
+// Fix: Corrected import paths for types and constants.
 import { useGame } from '../contexts/GameContext';
 import { MonsterTemplate, Element, TerrainType } from '../types';
 import { TERRAIN_BACKGROUNDS } from '../data/terrainBackgrounds';

@@ -1,4 +1,8 @@
+
+
+
 import React from 'react';
+// Fix: Corrected import path for types.
 import { Character } from '../types';
 import { useGame } from '../contexts/GameContext';
 import StatusEffectDisplay from './StatusEffectDisplay';

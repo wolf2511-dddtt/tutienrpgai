@@ -12,12 +12,12 @@ import CharacterSheet from './CharacterSheet';
 import CultivationScreen from './CultivationScreen';
 import FactionScreen from './FactionScreen';
 import BestiaryScreen from './BestiaryScreen';
-import WorldMapModal from './WorldMapModal';
+import WorldMap from './WorldMap'; // Import WorldMap directly
 import NpcListScreen from './NpcListScreen';
 import StoryLog from './StoryLog';
 import CompanionScreen from './CompanionScreen';
 
-type MainView = 'overview' | 'inventory' | 'resources' | 'quests' | 'pets' | 'companions' | 'cultivation' | 'factions' | 'npcs' | 'bestiary';
+type MainView = 'overview' | 'inventory' | 'resources' | 'quests' | 'pets' | 'companions' | 'cultivation' | 'factions' | 'npcs' | 'bestiary' | 'map';
 
 // --- SUB-COMPONENTS for the new layout ---
 
@@ -136,7 +136,8 @@ const PlayerInputFooter: React.FC<{
     onActionSubmit: (action: string) => void;
     isProcessing: boolean;
 }> = ({ onActionSubmit, isProcessing }) => {
-    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const { contextualActions, isGeneratingActions, handleGenerateContextualActions, handleGetAIAdvice } = useGame();
+    const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [inputText, setInputText] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -147,35 +148,71 @@ const PlayerInputFooter: React.FC<{
         }
     };
 
-    if (!isPanelOpen) {
-        return (
-             <footer className="flex-shrink-0 mt-4 flex justify-center border-t border-[var(--color-border-base)] pt-2">
-                 <button onClick={() => setIsPanelOpen(true)} className="bg-[var(--color-bg-secondary)] border border-[var(--color-primary)] rounded-full px-4 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
-                    Hiện Bảng Hành Động
-                 </button>
-             </footer>
-        );
-    }
+    const handleSuggestionClick = (action: string) => {
+        onActionSubmit(action);
+    };
 
     return (
         <footer className="flex-shrink-0 mt-4 border-t border-[var(--color-border-base)] pt-2">
-            <div className="bg-transparent">
-                 <form onSubmit={handleSubmit} className="flex items-center gap-2 sm:gap-4">
-                    <input 
-                        type="text" 
-                        value={inputText} 
-                        onChange={e => setInputText(e.target.value)} 
-                        disabled={isProcessing}
-                        placeholder="Bạn muốn làm gì tiếp theo?"
-                        className="flex-1 bg-[var(--color-bg-tertiary)] border-2 border-[var(--color-primary)] rounded-lg py-2 px-4 text-white placeholder-[var(--color-text-dark)] focus:outline-none focus:border-[var(--color-primary-light)] transition"
-                    />
-                    <button type="submit" disabled={isProcessing || !inputText.trim()} className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
-                        Gửi
+            {!isPanelOpen ? (
+                 <div className="flex justify-center">
+                    <button onClick={() => setIsPanelOpen(true)} className="bg-[var(--color-bg-secondary)] border border-[var(--color-primary)] rounded-full px-4 py-2 text-sm font-semibold hover:bg-[var(--color-bg-tertiary)] transition-colors flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
+                        Hiện Bảng Hành Động
                     </button>
-                </form>
-            </div>
-             <button onClick={() => setIsPanelOpen(false)} className="mx-auto mt-2 block text-sm text-[var(--color-text-dark)] hover:text-white">Ẩn</button>
+                </div>
+            ) : (
+                <div className="bg-transparent">
+                     {contextualActions.length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-2 mb-3 animate-fade-in">
+                            {contextualActions.map((action, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => handleSuggestionClick(action)}
+                                    disabled={isProcessing}
+                                    className="bg-gray-600/50 hover:bg-gray-500/50 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors border border-gray-500"
+                                >
+                                    {action}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                     <form onSubmit={handleSubmit} className="flex items-center gap-2 sm:gap-4">
+                        <button 
+                            type="button" 
+                            onClick={handleGenerateContextualActions} 
+                            disabled={isGeneratingActions || isProcessing}
+                            className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-[var(--color-accent-light)] font-bold py-2 px-4 rounded-lg transition disabled:opacity-50 flex items-center justify-center"
+                            title="Gợi ý hành động bằng AI"
+                        >
+                            {isGeneratingActions 
+                                ? <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                : '💡'}
+                        </button>
+                        <button 
+                            type="button" 
+                            onClick={handleGetAIAdvice} 
+                            disabled={isGeneratingActions || isProcessing}
+                            className="bg-purple-900/50 hover:bg-purple-800/50 border border-purple-500 text-purple-300 font-bold py-2 px-4 rounded-lg transition disabled:opacity-50 flex items-center justify-center"
+                            title="Cầu viện (Xin lời khuyên chiến thuật)"
+                        >
+                            🔮
+                        </button>
+                        <input 
+                            type="text" 
+                            value={inputText} 
+                            onChange={e => setInputText(e.target.value)} 
+                            disabled={isProcessing}
+                            placeholder="Bạn muốn làm gì tiếp theo?"
+                            className="flex-1 bg-[var(--color-bg-tertiary)] border-2 border-[var(--color-primary)] rounded-lg py-2 px-4 text-white placeholder-[var(--color-text-dark)] focus:outline-none focus:border-[var(--color-primary-light)] transition"
+                        />
+                        <button type="submit" disabled={isProcessing || !inputText.trim()} className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
+                            Gửi
+                        </button>
+                    </form>
+                    <button onClick={() => setIsPanelOpen(false)} className="mx-auto mt-2 block text-sm text-[var(--color-text-dark)] hover:text-white">Ẩn</button>
+                </div>
+            )}
         </footer>
     );
 };
@@ -183,7 +220,7 @@ const PlayerInputFooter: React.FC<{
 // --- Menu Modal Component ---
 const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const [activeView, setActiveView] = useState<MainView>('overview');
-    const { character } = useGame();
+    const { character, worldState, handleOpenDialogue } = useGame();
 
     if (!character) return null;
 
@@ -199,6 +236,14 @@ const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             case 'factions': return <FactionScreen />;
             case 'npcs': return <NpcListScreen />;
             case 'bestiary': return <BestiaryScreen />;
+            case 'map': return <WorldMap 
+                                    pois={worldState.pois} 
+                                    playerPosition={character.position} 
+                                    onPoiClick={(id) => {
+                                        onClose();
+                                        handleOpenDialogue(id);
+                                    }} 
+                                />;
             default: return null;
         }
     };
@@ -217,9 +262,10 @@ const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] rounded-2xl shadow-2xl w-full max-w-7xl h-[95vh] sm:h-[90vh] text-white relative flex flex-col overflow-hidden backdrop-blur-md">
                 <button onClick={onClose} className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-white text-3xl z-20">&times;</button>
                 <nav className="w-full flex-shrink-0 bg-[var(--color-bg-main)]/50 p-2 border-b border-[var(--color-primary)]">
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
                         <NavButton view="overview" label="Tổng Quan" />
                         <NavButton view="inventory" label="Hành Trang" />
+                        <NavButton view="map" label="Bản Đồ" />
                         <NavButton view="cultivation" label="Công Pháp" />
                         <NavButton view="companions" label="Đồng Hành" />
                         <NavButton view="factions" label="Phe Phái" />
@@ -250,7 +296,8 @@ const WorldScreen: React.FC = () => {
         handleOpenForge, 
         handleOpenMenu,
         handleBackToMenu,
-        handleOpenDialogue
+        handleOpenDialogue,
+        clearContextualActions
     } = useGame();
 
     const [eventLog, setEventLog] = useState<ExplorationEventLog[]>([]);
@@ -282,6 +329,7 @@ const WorldScreen: React.FC = () => {
     const handleActionSubmit = useCallback(async (action: string) => {
         if (!action || isProcessing) return;
         setIsProcessing(true);
+        clearContextualActions();
         
         const terrain = getTerrainFromPosition(character.position);
         try {
@@ -298,7 +346,7 @@ const WorldScreen: React.FC = () => {
         }
         
         setIsProcessing(false);
-    }, [character, isProcessing, appSettings.difficulty, handleStartCombat]);
+    }, [character, isProcessing, appSettings.difficulty, handleStartCombat, clearContextualActions]);
 
     const handleBackToMenuWithConfirmation = useCallback(() => {
         if (window.confirm("Bạn có chắc muốn trở về menu chính? Mọi tiến trình chưa lưu sẽ bị mất.")) {

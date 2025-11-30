@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import { ExplorationEventLog, LogType } from '../types';
 import { useGame } from '../contexts/GameContext';
@@ -15,6 +16,7 @@ const LogIcons: Record<LogType, string> = {
     [LogType.COMBAT]: '⚔️',
     [LogType.CRAFTING]: '🛠️',
     [LogType.ERROR]: '❌',
+    [LogType.ADVICE]: '🔮',
 };
 
 const StoryLog: React.FC<StoryLogProps> = ({ logs, isProcessing }) => {
@@ -38,7 +40,7 @@ const StoryLog: React.FC<StoryLogProps> = ({ logs, isProcessing }) => {
             <div ref={logContainerRef} className="flex-grow overflow-y-auto pr-2 space-y-3 flex flex-col-reverse text-sm">
                 {/* Reversed order rendering */}
                 {logs.map((log) => (
-                    <div key={log.id} className="border-t border-gray-700/50 pt-2 mt-2 first:border-t-0 first:pt-0 first:mt-0 italic animate-fade-in flex items-start gap-2" style={storyLogStyle}>
+                    <div key={log.id} className={`border-t border-gray-700/50 pt-2 mt-2 first:border-t-0 first:pt-0 first:mt-0 italic animate-fade-in flex items-start gap-2 ${log.type === LogType.ADVICE ? 'text-purple-300 bg-purple-900/10 p-2 rounded' : ''}`} style={storyLogStyle}>
                         <span className="text-lg mt-0.5 not-italic">{LogIcons[log.type] || '🌀'}</span>
                         <div className="flex-1">
                             <p>{log.text}</p>

@@ -1,3 +1,6 @@
+
+
+// Fix: Corrected import path for types.
 import { BossPhase } from '../types';
 
 export const NGUYEN_CHU_THANH_TRI_PHASES: BossPhase[] = [

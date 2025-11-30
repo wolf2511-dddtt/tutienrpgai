@@ -1,16 +1,50 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+// Fix: Corrected import path for GameContext.
 import { useGame } from '../contexts/GameContext';
+// Fix: Corrected import path for types.
 import { DialogueTurn } from '../types';
+import { generateSpeech } from '../services/geminiService';
 
 const AILoadingSpinner: React.FC = () => (
     <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
 );
 
-const DialogueLine: React.FC<{ turn: DialogueTurn, npcImageUrl?: string }> = ({ turn, npcImageUrl }) => {
+// Audio Helper
+const playAudioData = async (base64Audio: string) => {
+    try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+        const binaryString = atob(base64Audio);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        // Decode raw PCM
+        const dataInt16 = new Int16Array(bytes.buffer);
+        const frameCount = dataInt16.length;
+        const buffer = audioContext.createBuffer(1, frameCount, 24000);
+        const channelData = buffer.getChannelData(0);
+        for (let i = 0; i < frameCount; i++) {
+            channelData[i] = dataInt16[i] / 32768.0;
+        }
+
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioContext.destination);
+        source.start();
+        return source;
+    } catch (e) {
+        console.error("Audio playback error:", e);
+    }
+};
+
+const DialogueLine: React.FC<{ turn: DialogueTurn, npcImageUrl?: string, gender?: 'male' | 'female' }> = ({ turn, npcImageUrl, gender }) => {
     const { appSettings } = useGame();
     const isPlayer = turn.speaker === 'player';
     const isSystemMessage = turn.text.startsWith('[');
+    const [isPlaying, setIsPlaying] = useState(false);
     
     if (isSystemMessage) {
         return (
@@ -33,6 +67,21 @@ const DialogueLine: React.FC<{ turn: DialogueTurn, npcImageUrl?: string }> = ({ 
         backgroundColor: dialogueStyle.bgColor,
     };
 
+    const handleSpeak = async () => {
+        if (isPlaying || !turn.text) return;
+        setIsPlaying(true);
+        // Map gender/role to voice if possible, default to 'Kore' or 'Puck'
+        const voice = isPlayer ? 'Puck' : (gender === 'female' ? 'Kore' : 'Fenrir');
+        const audioData = await generateSpeech(turn.text, voice);
+        if (audioData) {
+            await playAudioData(audioData);
+            // Simulate playing duration or just timeout
+            setTimeout(() => setIsPlaying(false), Math.min(turn.text.length * 50, 5000));
+        } else {
+            setIsPlaying(false);
+        }
+    };
+
     return (
         <div className={`flex items-end gap-2 sm:gap-3 my-4 ${isPlayer ? 'flex-row-reverse' : ''}`}>
             {!isPlayer && (
@@ -44,9 +93,23 @@ const DialogueLine: React.FC<{ turn: DialogueTurn, npcImageUrl?: string }> = ({ 
             )}
             <div 
                 style={bubbleStyle}
-                className={`w-10/12 sm:w-auto sm:max-w-xl p-3 sm:p-4 rounded-2xl ${isPlayer ? 'rounded-br-none' : 'rounded-bl-none'}`}
+                className={`relative w-10/12 sm:w-auto sm:max-w-xl p-3 sm:p-4 rounded-2xl ${isPlayer ? 'rounded-br-none' : 'rounded-bl-none'} group`}
             >
                 <p>{turn.text}</p>
+                <button 
+                    onClick={handleSpeak}
+                    disabled={isPlaying}
+                    className={`absolute -bottom-6 ${isPlayer ? 'left-0' : 'right-0'} text-gray-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100 p-1`}
+                    title="Đọc văn bản"
+                >
+                    {isPlaying ? (
+                        <span className="animate-pulse">🔊 Playing...</span>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        </svg>
+                    )}
+                </button>
             </div>
         </div>
     );
@@ -124,11 +187,27 @@ const DialogueModal: React.FC = () => {
                     <img src={dialogueState.npcImageUrl || 'https://via.placeholder.com/150'} alt={dialogueState.npcName} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-purple-400" />
                     <div>
                         <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-primary-light)]">{npcDisplayName}</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                             <p className="text-sm sm:text-md text-[var(--color-text-dark)]">{dialogueState.npcRole} {dialogueState.factionName ? `(${dialogueState.factionName})` : ''}</p>
-                             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${affinityDetails.colorClass}`}>
-                                {affinityDetails.label}
-                            </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
+                             <div className="flex items-center gap-2">
+                                <p className="text-sm sm:text-md text-[var(--color-text-dark)]">{dialogueState.npcRole} {dialogueState.factionName ? `(${dialogueState.factionName})` : ''}</p>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${affinityDetails.colorClass}`}>
+                                    {affinityDetails.label}
+                                </span>
+                             </div>
+                             {(dialogueState.preferredElement || dialogueState.weakness) && (
+                                <div className="flex items-center gap-3 text-xs sm:ml-2 border-l border-gray-600 pl-2">
+                                    {dialogueState.preferredElement && (
+                                        <span title="Nguyên tố ưa thích" className="flex items-center gap-1 text-gray-300">
+                                            ❤️ <span className="text-pink-300">{dialogueState.preferredElement}</span>
+                                        </span>
+                                    )}
+                                    {dialogueState.weakness && (
+                                        <span title="Điểm yếu" className="flex items-center gap-1 text-gray-300">
+                                            💀 <span className="text-red-300">{dialogueState.weakness}</span>
+                                        </span>
+                                    )}
+                                </div>
+                             )}
                         </div>
                     </div>
                 </div>
@@ -137,7 +216,7 @@ const DialogueModal: React.FC = () => {
 
             <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6">
                 <div className="max-w-4xl mx-auto">
-                    {dialogueState.history.map((turn, index) => (
+                    {dialogueState.history.map((turn: DialogueTurn, index: number) => (
                         <DialogueLine key={index} turn={turn} npcImageUrl={dialogueState.npcImageUrl} />
                     ))}
                      {isSending && !message && (
@@ -155,7 +234,7 @@ const DialogueModal: React.FC = () => {
             <footer className="bg-[var(--color-bg-secondary)]/80 backdrop-blur-sm p-2 sm:p-4 border-t border-[var(--color-primary)]">
                 {dialogueState.options && dialogueState.options.length > 0 && !isSending && (
                     <div className="max-w-4xl mx-auto flex flex-wrap justify-center gap-2 mb-3">
-                        {dialogueState.options.map((option, index) => (
+                        {dialogueState.options.map((option: string, index: number) => (
                             <button
                                 key={index}
                                 onClick={() => sendMessage(option)}

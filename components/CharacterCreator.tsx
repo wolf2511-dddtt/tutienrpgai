@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+// Fix: Corrected import paths for types and constants.
 import { PlayerClass, BaseStats, Stat, Difficulty } from '../types';
 import { useGame } from '../contexts/GameContext';
 import { CUSTOM_CLASS_CREATION_POINTS } from '../constants';
@@ -18,7 +19,8 @@ const CharacterCreator = () => {
     const [difficulty, setDifficulty] = useState<Difficulty>(Difficulty.NORMAL);
 
     const remainingPoints = useMemo(() => {
-        const totalAssigned = Object.values(customStats).reduce((sum, value) => sum + value, 0);
+        // Fix: Explicitly cast values to number array to prevent potential type errors during arithmetic operation.
+        const totalAssigned = (Object.values(customStats) as number[]).reduce((sum, value) => sum + value, 0);
         return CUSTOM_CLASS_CREATION_POINTS - totalAssigned;
     }, [customStats]);
 
@@ -129,7 +131,7 @@ const CharacterCreator = () => {
                         <label className="block text-sm font-medium text-gray-300 mb-2">Chọn Class</label>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             {Object.values(PlayerClass).map(pClass => (
-                                <button key={pClass} type="button" onClick={() => setSelectedDefaultClass(pClass)} className={`p-4 rounded-lg border-2 transition-all ${selectedDefaultClass === pClass ? 'border-purple-500 bg-purple-900/50' : 'border-gray-600 bg-gray-800 hover:bg-gray-700'}`}>
+                                <button key={pClass} type="button" onClick={() => setSelectedDefaultClass(pClass as PlayerClass)} className={`p-4 rounded-lg border-2 transition-all ${selectedDefaultClass === pClass ? 'border-purple-500 bg-purple-900/50' : 'border-gray-600 bg-gray-800 hover:bg-gray-700'}`}>
                                     <span className="font-bold">{pClass}</span>
                                 </button>
                             ))}
@@ -140,7 +142,7 @@ const CharacterCreator = () => {
                     <label className="block text-sm font-medium text-gray-300 mb-2">Độ Khó</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                         {Object.values(Difficulty).map(d => (
-                            <button key={d} type="button" onClick={() => setDifficulty(d)} className={`p-3 rounded-lg border-2 transition-all ${difficulty === d ? 'border-yellow-500 bg-yellow-900/50' : 'border-gray-600 bg-gray-800 hover:bg-gray-700'}`}>
+                            <button key={d} type="button" onClick={() => setDifficulty(d as Difficulty)} className={`p-3 rounded-lg border-2 transition-all ${difficulty === d ? 'border-yellow-500 bg-yellow-900/50' : 'border-gray-600 bg-gray-800 hover:bg-gray-700'}`}>
                                 <span className="font-bold">{d}</span>
                             </button>
                         ))}

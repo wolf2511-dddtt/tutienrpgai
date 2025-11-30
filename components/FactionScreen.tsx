@@ -1,9 +1,12 @@
 
 import React, { useState } from 'react';
-import { useGame } from '../contexts/GameContext';
-import { Faction, FactionType, Item, ItemType, QuestStatus, QuestType, SectStoreItem, LogType } from '../types';
-import ItemCard from './ItemCard';
-import { RARITY_DATA } from '../constants';
+// Fix: Corrected import path to be relative
+import { useGame } from '../contexts/GameContext.tsx';
+// Fix: Corrected import path to be relative
+import { Faction, FactionType, Item, ItemType, QuestStatus, QuestType, SectStoreItem, LogType, Rarity } from '../types.ts';
+import ItemCard from './ItemCard.tsx';
+// Fix: Corrected import path to be relative
+import { RARITY_DATA } from '../constants.ts';
 
 interface ReputationDetails {
     label: string;
@@ -163,10 +166,10 @@ const SectScreen: React.FC<{faction: Faction}> = ({ faction }) => {
                 <h3 className="text-lg font-semibold text-cyan-300 mb-3">Cống Hiến Vật Phẩm</h3>
                  <div className="space-y-2 h-[40vh] overflow-y-auto pr-2">
                     {character.inventory.filter(i => i.type !== ItemType.CULTIVATION_MANUAL).map(item => {
-                        const rarityInfo = RARITY_DATA[item.rarity];
+                        const rarityInfo = RARITY_DATA[item.rarity] || RARITY_DATA[Rarity.COMMON];
                         return (
                             <div key={item.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-md">
-                                <p className={rarityInfo.color}>{item.name} +{item.upgradeLevel}</p>
+                                <p className={rarityInfo.color}>{item.name} {item.upgradeLevel > 0 && `+${item.upgradeLevel}`}</p>
                                 <button onClick={() => handleContribute(item)} disabled={!!contributingId} className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-1 px-3 rounded disabled:bg-gray-500">
                                     {contributingId === item.id ? '...' : 'Cống Hiến'}
                                 </button>
@@ -200,7 +203,7 @@ const SectScreen: React.FC<{faction: Faction}> = ({ faction }) => {
                 <div className="space-y-3 h-[40vh] overflow-y-auto pr-2">
                     {faction.store.map(storeItem => {
                         const canAfford = character.sectContributionPoints >= storeItem.cost;
-                        const rarityInfo = RARITY_DATA[storeItem.item.rarity];
+                        const rarityInfo = RARITY_DATA[storeItem.item.rarity] || RARITY_DATA[Rarity.COMMON];
                         return (
                             <div key={storeItem.id} className="p-3 bg-gray-900/50 rounded-md">
                                 <div className="flex justify-between items-start">

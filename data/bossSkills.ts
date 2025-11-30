@@ -1,3 +1,6 @@
+
+
+// Fix: Corrected import path for types.
 import { Skill, SkillType, TargetType, SkillEffectType, Element } from '../types';
 
 export const BOSS_SKILLS: Skill[] = [

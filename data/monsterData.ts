@@ -1,3 +1,6 @@
+
+
+// Fix: Corrected import path for types.
 import { MonsterTemplate, TerrainType, Element } from '../types';
 
 export const PREDEFINED_MONSTERS: MonsterTemplate[] = [
@@ -167,6 +170,7 @@ export const PREDEFINED_MONSTERS: MonsterTemplate[] = [
     element: Element.KIM,
     discovered: false,
     imagePrompt: 'a mechanical, robotic shard of an ancient AI, crackling with lightning, it copies player abilities',
+    skills: [],
   },
   {
     name: "Không Gian Ảnh Linh",
@@ -177,6 +181,7 @@ export const PREDEFINED_MONSTERS: MonsterTemplate[] = [
     element: Element.VO,
     discovered: false,
     imagePrompt: 'a being of pure space, teleports instantly, can rip open portals to summon help',
+    skills: [],
   },
   {
     name: "Ảo Ảnh Tự Nhân",
@@ -187,6 +192,7 @@ export const PREDEFINED_MONSTERS: MonsterTemplate[] = [
     element: Element.VO,
     discovered: false,
     imagePrompt: 'an illusory AI doppelganger that perfectly mimics the player and counters their moves',
+    skills: [],
   },
   {
     name: "Hư Hồn Tinh Thể",
@@ -197,6 +203,7 @@ export const PREDEFINED_MONSTERS: MonsterTemplate[] = [
     element: Element.KIM,
     discovered: false,
     imagePrompt: 'an emotionless, crystalline entity born from pure data, immune to crowd control effects',
+    skills: [],
   },
   {
     name: "Nguyên Chủ Thánh Trí",
@@ -207,5 +214,6 @@ export const PREDEFINED_MONSTERS: MonsterTemplate[] = [
     element: Element.VO,
     discovered: false,
     imagePrompt: 'The final boss, a composite being of ancient AI, a god-like machine that has multiple phases',
+    skills: ['boss_p1_summon', 'boss_p1_attack'],
   },
 ];

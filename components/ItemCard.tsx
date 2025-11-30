@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Item, Rarity, SkillType, Element, ItemType } from '../types';
 import { RARITY_DATA, ELEMENT_ICONS } from '../constants';
@@ -17,7 +16,7 @@ const StatDisplay: React.FC<{ label: string; value: string | number }> = ({ labe
 );
 
 const ItemCard: React.FC<ItemCardProps> = ({ item, onPrimaryAction, isEquipped }) => {
-  const rarityInfo = RARITY_DATA[item.rarity];
+  const rarityInfo = RARITY_DATA[item.rarity] || RARITY_DATA[Rarity.COMMON];
 
   const renderActionButton = () => {
     if (!onPrimaryAction) {

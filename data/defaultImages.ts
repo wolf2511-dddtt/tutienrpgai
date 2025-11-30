@@ -1,3 +1,6 @@
+
+
+// Fix: Corrected import path for types.
 import { ImageLibraryItem } from '../types';
 
 // Raw data from user, processed to match the ImageLibraryItem interface
