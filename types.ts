@@ -378,6 +378,7 @@ export interface AttackResult {
     appliedEffects: ActiveEffect[];
     lifestealAmount: number;
     elementalEffect: 'strong' | 'weak' | 'proficient' | null;
+    isCritical?: boolean;
 }
 
 export interface Faction {

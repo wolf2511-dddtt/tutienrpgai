@@ -202,12 +202,13 @@ export const performAttack = (attacker: Combatant, defender: Combatant): AttackR
     const messages: string[] = [];
     let damage = 0;
     let lifestealAmount = 0;
+    let isCritical = false;
     
     // 1. Accuracy Check
     const accuracyRoll = Math.random() * 100;
     if (accuracyRoll > (attacker.derivedStats.ACCURACY - defender.derivedStats.EVASION)) {
         messages.push(`${attacker.name} tấn công ${defender.name} nhưng đã bị né!`);
-        return { damage, messages, appliedEffects: [], lifestealAmount, elementalEffect: null };
+        return { damage, messages, appliedEffects: [], lifestealAmount, elementalEffect: null, isCritical: false };
     }
 
     // 2. Damage Calculation
@@ -226,6 +227,7 @@ export const performAttack = (attacker: Combatant, defender: Combatant): AttackR
     if (critRoll < attacker.derivedStats.CRIT_RATE) {
         rawDamage *= 1.75; // Buffed to 175% crit damage for satisfaction
         messages.push(`💥 Đòn chí mạng!`);
+        isCritical = true;
     }
 
     // 4. Randomization (+/- 10%)
@@ -241,7 +243,7 @@ export const performAttack = (attacker: Combatant, defender: Combatant): AttackR
 
     messages.push(`${attacker.name} tấn công ${defender.name}, gây ${damage} sát thương.`);
     
-    return { damage, messages, appliedEffects: [], lifestealAmount, elementalEffect: null };
+    return { damage, messages, appliedEffects: [], lifestealAmount, elementalEffect: null, isCritical };
 };
 
 export const useSkill = (caster: Combatant, target: Combatant, skill: Skill): AttackResult => {
@@ -305,7 +307,7 @@ export const useSkill = (caster: Combatant, target: Combatant, skill: Skill): At
         }
     });
 
-    return { damage: totalDamage, messages, appliedEffects, lifestealAmount, elementalEffect: null };
+    return { damage: totalDamage, messages, appliedEffects, lifestealAmount, elementalEffect: null, isCritical: false };
 };
 
 export const generateItem = async (level: number, character: Character, forceRarity?: Rarity): Promise<Item> => {

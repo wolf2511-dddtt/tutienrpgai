@@ -107,7 +107,7 @@ export const CombatScreen: React.FC = () => {
   const [rewards, setRewards] = useState<{exp: number, items: Item[], materials: { [key in UpgradeMaterial]?: number }, consumables: { [key in UpgradeConsumable]?: number }}|null>(null);
   const [showSkillList, setShowSkillList] = useState(false);
   
-  const [floatingTexts, setFloatingTexts] = useState<{id: string, text: string, type: 'damage' | 'heal' | 'lifesteal' | 'dot' | 'strong' | 'weak' | 'proficient', side: 'player' | 'enemy' | 'pet'}[]>([]);
+  const [floatingTexts, setFloatingTexts] = useState<{id: string, text: string, type: 'damage' | 'heal' | 'lifesteal' | 'dot' | 'strong' | 'weak' | 'proficient' | 'crit', side: 'player' | 'enemy' | 'pet'}[]>([]);
   const [shake, setShake] = useState(false);
 
   const combatEndedRef = useRef(false);
@@ -156,7 +156,7 @@ export const CombatScreen: React.FC = () => {
 
   const isPlayerTurn = useMemo(() => participants[turnIndex]?.id === player.id, [participants, turnIndex, player.id]);
 
-  const addFloatingText = useCallback((text: string, type: 'damage' | 'heal' | 'lifesteal' | 'dot' | 'strong' | 'weak' | 'proficient', side: 'player' | 'enemy' | 'pet') => {
+  const addFloatingText = useCallback((text: string, type: 'damage' | 'heal' | 'lifesteal' | 'dot' | 'strong' | 'weak' | 'proficient' | 'crit', side: 'player' | 'enemy' | 'pet') => {
       const newText = { id: crypto.randomUUID(), text, type, side };
       setFloatingTexts(prev => [...prev, newText]);
       setTimeout(() => {
@@ -326,7 +326,11 @@ export const CombatScreen: React.FC = () => {
     if (result.damage > 0) {
         newDefenderState.currentHp = Math.max(0, newDefenderState.currentHp - result.damage);
         const defenderSide = newDefenderState.id === player.id ? 'player' : (newDefenderState.id === player.activePetId ? 'pet' : 'enemy');
-        addFloatingText(result.damage.toString(), 'damage', defenderSide);
+        if (result.isCritical) {
+             addFloatingText(`💥 ${result.damage}`, 'crit', defenderSide);
+        } else {
+             addFloatingText(result.damage.toString(), 'damage', defenderSide);
+        }
         if (attacker.id === player.id || attacker.id === player.activePetId) {
             setShake(true);
             setTimeout(() => setShake(false), 300);
@@ -531,14 +535,14 @@ useEffect(() => {
             {/* Player/Pet Side */}
             <div className="relative">
                  {floatingTexts.filter(t => t.side === 'player' || t.side === 'pet').map(t => (
-                    <span key={t.id} className={`absolute top-1/3 left-1/3 animate-float-up font-bold text-2xl ${t.type === 'damage' || t.type === 'dot' ? 'text-red-500' : 'text-green-400'} drop-shadow-lg`}>{t.text}</span>
+                    <span key={t.id} className={`absolute top-1/3 left-1/3 animate-float-up font-bold text-2xl ${t.type === 'damage' || t.type === 'dot' ? 'text-red-500' : (t.type === 'crit' ? 'text-yellow-400 text-3xl drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]' : 'text-green-400')} drop-shadow-lg`}>{t.text}</span>
                  ))}
             </div>
             <div />
             {/* Enemy Side */}
             <div className="relative">
                  {floatingTexts.filter(t => t.side === 'enemy').map(t => (
-                    <span key={t.id} className={`absolute top-1/3 left-1/3 animate-float-up font-bold text-2xl ${t.type === 'damage' || t.type === 'dot' ? 'text-red-500' : 'text-green-400'} drop-shadow-lg`}>{t.text}</span>
+                    <span key={t.id} className={`absolute top-1/3 left-1/3 animate-float-up font-bold text-2xl ${t.type === 'damage' || t.type === 'dot' ? 'text-red-500' : (t.type === 'crit' ? 'text-yellow-400 text-3xl drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]' : 'text-green-400')} drop-shadow-lg`}>{t.text}</span>
                  ))}
             </div>
         </div>
