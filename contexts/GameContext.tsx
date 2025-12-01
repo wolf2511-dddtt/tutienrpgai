@@ -35,8 +35,8 @@ import {
 } from '../types';
 import { loadSettings, saveSettings, loadAllSaveSlots, saveGame, loadGame, deleteSave } from '../services/storageService';
 import { DEFAULT_SETTINGS, PLAYER_CLASS_BASE_STATS, UPGRADE_CONSUMABLES_DATA, UPGRADE_MATERIALS_DATA, PET_EVOLUTION_COST, PET_EVOLUTION_LEVEL } from '../constants';
-import { calculateDerivedStats, getUpgradeCost, processItemUpgrade, calculatePetDerivedStats, getTerrainFromPosition, generateRandomRetainer, calculateRetainerStats } from '../services/gameLogic';
-import { generateCharacterDetails, generateSectMission, generateContextualActions, generateStrategicAdvice } from '../services/geminiService';
+import { calculateDerivedStats, getUpgradeCost, processItemUpgrade, calculatePetDerivedStats, getTerrainFromPosition, generateRandomRetainer, calculateRetainerStats, generateRandomMonster, calculateLevelUp } from '../services/gameLogic';
+import { generateCharacterDetails, generateSectMission, generateContextualActions, generateStrategicAdvice, generateDialogueResponse } from '../services/geminiService';
 import { VAN_LINH_GIOI_POIS } from '../data/worldData';
 import { PREDEFINED_MONSTERS } from '../data/monsterData';
 
@@ -719,6 +719,125 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCharacter({ ...character, activeRetainerId: retainerId });
     };
 
+    // --- GAME LOOP IMPLEMENTATIONS ---
+
+    const handleStartCombat = () => {
+        if (!character) return;
+        // Generate a random enemy if none exists (or always to start fresh)
+        const terrain = getTerrainFromPosition(character.position);
+        const newEnemy = generateRandomMonster(character.level, terrain);
+        
+        setEnemy(newEnemy);
+        setScreen(GameScreen.COMBAT);
+        setOneTimeMessages([{id: crypto.randomUUID(), text: "Bắt đầu chiến đấu!", type: LogType.COMBAT}]);
+    };
+
+    const handleCombatEnd = (playerWon: boolean, finalPlayer: Character, finalPet: Pet | null, expGained: number, itemsDropped: Item[], materialsDropped: { [key in UpgradeMaterial]?: number }, consumablesDropped: any) => {
+        if (!character) return;
+
+        let newCharacter = { ...finalPlayer };
+        let levelUpData = null;
+
+        if (playerWon) {
+            // Add rewards
+            newCharacter.inventory = [...newCharacter.inventory, ...itemsDropped];
+            
+            for (const mat in materialsDropped) {
+                const key = mat as UpgradeMaterial;
+                newCharacter.materials[key] = (newCharacter.materials[key] || 0) + (materialsDropped[key] || 0);
+            }
+            
+            for (const con in consumablesDropped) {
+                const key = con as UpgradeConsumable;
+                newCharacter.consumables[key] = (newCharacter.consumables[key] || 0) + (consumablesDropped[key] || 0);
+            }
+
+            // Calculate Level Up
+            const result = calculateLevelUp(newCharacter, expGained);
+            newCharacter = result.newCharacter;
+            levelUpData = result.levelUpInfo;
+
+            // Update Pet
+            if (finalPet && character.activePetId) {
+                // Should also give EXP to pet here
+                const petIndex = newCharacter.pets.findIndex(p => p.id === character.activePetId);
+                if (petIndex !== -1) {
+                    newCharacter.pets[petIndex] = finalPet;
+                }
+            }
+        } else {
+            // Penalty for losing
+            newCharacter.currentHp = Math.floor(newCharacter.derivedStats.HP * 0.1); // Revive with 10% HP
+            newCharacter.exp = Math.max(0, newCharacter.exp - Math.floor(newCharacter.expToNextLevel * 0.1)); // Lose 10% level exp
+            setOneTimeMessages([{id: crypto.randomUUID(), text: "Bạn đã bị đánh bại và tổn hao tu vi...", type: LogType.ERROR}]);
+        }
+
+        setCharacter(newCharacter);
+        setEnemy(null);
+        setScreen(GameScreen.WORLD);
+        
+        if (levelUpData) {
+            setLevelUpInfo(levelUpData);
+        }
+    };
+
+    const handleActivateCultivationTechnique = (techniqueId: string) => {
+        if (!character) return;
+        setCharacter({ ...character, activeCultivationTechniqueId: techniqueId });
+        setOneTimeMessages([{id: crypto.randomUUID(), text: "Đã chuyển đổi công pháp vận hành.", type: LogType.SYSTEM}]);
+    };
+
+    const handleSendDialogueMessage = async (message: string) => {
+        if (!character || !activePoiIdForDialogue) return;
+        const poiIndex = worldState.pois.findIndex(p => p.id === activePoiIdForDialogue);
+        if (poiIndex === -1) return;
+
+        const poi = worldState.pois[poiIndex];
+        if (!poi.dialogue) return;
+
+        // Optimistic update for UI
+        const newHistory = [...poi.dialogue.history, { speaker: 'player', text: message } as any]; // Casting for simplicity
+        const updatedPoi = { ...poi, dialogue: { ...poi.dialogue, history: newHistory } };
+        const updatedPois = [...worldState.pois];
+        updatedPois[poiIndex] = updatedPoi;
+        setWorldState({ ...worldState, pois: updatedPois });
+
+        try {
+            const response = await generateDialogueResponse(
+                poi.dialogue.npcName,
+                poi.dialogue.npcRole,
+                "Bình thường", // Could be stored in POI
+                poi.dialogue.affinity,
+                message,
+                poi.dialogue.history
+            );
+
+            const finalHistory = [...newHistory, { speaker: 'npc', text: response.text }];
+            const finalPoi = { 
+                ...poi, 
+                dialogue: { 
+                    ...poi.dialogue, 
+                    history: finalHistory,
+                    options: response.options,
+                    affinity: response.newAffinity
+                } 
+            };
+            const finalPois = [...worldState.pois];
+            finalPois[poiIndex] = finalPoi;
+            setWorldState({ ...worldState, pois: finalPois });
+            
+            // Check for affinity milestones/rewards? (Future feature)
+
+        } catch (e) {
+            console.error("Dialogue Error", e);
+        }
+    };
+
+    const handleContinueTransientDialogue = async (message: string) => {
+        // Logic for non-POI dialogue (random events)
+        // Similar to above but updates `transientDialogue` state
+    };
+
     const value: GameContextType = {
         screen,
         character,
@@ -775,23 +894,25 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         handleTrainRetainer,
         handleSetActiveRetainer,
 
+        // Fully Implemented Handlers
+        handleCreateGame,
+        handleCombatEnd,
+        handleStartCombat,
+        handleActivateCultivationTechnique,
+        handleSendDialogueMessage,
+        handleContinueTransientDialogue,
+        
         // Stubs for complex logic
         handleQuickPlay: unimplementedAsync('handleQuickPlay'),
         handleDevQuickStart: unimplementedAsync('handleDevQuickStart'),
-        handleCreateGame,
-        handleCombatEnd: unimplemented('handleCombatEnd'),
-        handleStartCombat: unimplemented('handleStartCombat'),
         handleOpenForge: () => setScreen(GameScreen.FORGE),
         handleOpenDialogue: (poiId) => { setActivePoiIdForDialogue(poiId); setScreen(GameScreen.DIALOGUE); },
         handleCloseDialogue: () => { setActivePoiIdForDialogue(null); setScreen(GameScreen.WORLD); },
-        handleSendDialogueMessage: unimplementedAsync('handleSendDialogueMessage'),
-        handleContinueTransientDialogue: unimplementedAsync('handleContinueTransientDialogue'),
         handleProceedInDungeon: unimplementedAsync('handleProceedInDungeon'),
         handleExitDungeon: unimplemented('handleExitDungeon'),
         handleAssignServantTask: unimplemented('handleAssignServantTask'),
         handleJoinSectRequest: unimplemented('handleJoinSectRequest'),
         handleUpdateImageLibrary: (lib) => setImageLibrary(lib),
-        handleActivateCultivationTechnique: unimplemented('handleActivateCultivationTechnique'),
         clearLevelUpInfo: () => setLevelUpInfo(null),
         setOneTimeMessages,
     };

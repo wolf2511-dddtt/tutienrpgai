@@ -592,3 +592,77 @@ export const processItemUpgrade = (item: Item): Item => {
 
     return newItem;
 }
+
+// --- New Logic for Game Loop ---
+
+export const generateRandomMonster = (playerLevel: number, terrain: string): Character => {
+    // Filter monsters by terrain if possible, otherwise pick random
+    let availableTemplates = PREDEFINED_MONSTERS.filter(m => m.habitats.includes(terrain as any));
+    if (availableTemplates.length === 0) {
+        availableTemplates = PREDEFINED_MONSTERS;
+    }
+    
+    const template = availableTemplates[Math.floor(Math.random() * availableTemplates.length)];
+    // Randomize level slightly around player level
+    const levelVariance = Math.floor(Math.random() * 5) - 2; // -2 to +2
+    const level = Math.max(1, playerLevel + levelVariance);
+    
+    return createMonster(template.name, level);
+};
+
+export const calculateLevelUp = (character: Character, expGained: number): { newCharacter: Character, levelUpInfo: { newLevel: number, realmChanged: boolean, newRealm: string } | null } => {
+    let newCharacter = { ...character };
+    newCharacter.exp += expGained;
+    
+    let levelUpInfo = null;
+
+    if (newCharacter.exp >= newCharacter.expToNextLevel) {
+        newCharacter.level += 1;
+        newCharacter.exp -= newCharacter.expToNextLevel;
+        // Increase EXP requirement
+        newCharacter.expToNextLevel = Math.floor(newCharacter.expToNextLevel * 1.5);
+        
+        // Stat Growth
+        newCharacter.baseStats.STR += 2;
+        newCharacter.baseStats.AGI += 2;
+        newCharacter.baseStats.INT += 2;
+        newCharacter.baseStats.SPI += 2;
+        newCharacter.baseStats.CON += 3;
+        newCharacter.baseStats.DEX += 2;
+        newCharacter.unallocatedStatPoints = (newCharacter.unallocatedStatPoints || 0) + 5;
+
+        // Realm Breakthrough every 10 levels
+        let realmChanged = false;
+        if (newCharacter.level % 10 === 0) {
+            newCharacter.realm.level += 1;
+            if (newCharacter.realm.level > 9) {
+                // Determine new realm name (simplified logic)
+                const realms = ['Luyện Khí', 'Trúc Cơ', 'Kim Đan', 'Nguyên Anh', 'Hóa Thần', 'Luyện Hư', 'Hợp Thể', 'Đại Thừa', 'Độ Kiếp'];
+                const currentRealmIndex = realms.indexOf(newCharacter.realm.name.replace(' Kỳ', ''));
+                if (currentRealmIndex !== -1 && currentRealmIndex < realms.length - 1) {
+                    newCharacter.realm.name = realms[currentRealmIndex + 1] + ' Kỳ';
+                    newCharacter.realm.level = 1;
+                    realmChanged = true;
+                    // Realm Bonus
+                    newCharacter.baseStats.STR += 10;
+                    newCharacter.baseStats.INT += 10;
+                    newCharacter.baseStats.CON += 10;
+                }
+            }
+        }
+
+        // Recalculate derived
+        newCharacter.derivedStats = calculateDerivedStats(newCharacter);
+        // Full heal on level up
+        newCharacter.currentHp = newCharacter.derivedStats.HP;
+        newCharacter.currentMp = newCharacter.derivedStats.MP;
+
+        levelUpInfo = {
+            newLevel: newCharacter.level,
+            realmChanged,
+            newRealm: newCharacter.realm.name
+        };
+    }
+
+    return { newCharacter, levelUpInfo };
+};

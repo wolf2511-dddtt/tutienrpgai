@@ -10,8 +10,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_DATA: ChangelogEntry[] = [
   {
-    version: "2.5.3",
+    version: "2.6.0",
     date: new Date().toISOString().split('T')[0],
+    changes: [
+      { type: 'new', description: 'Hoàn thiện hệ thống Chiến đấu: Quái vật giờ đây xuất hiện ngẫu nhiên dựa trên địa hình.' },
+      { type: 'new', description: 'Kích hoạt cơ chế Thăng cấp & Đột phá: Nhân vật nhận EXP và tăng sức mạnh thực tế sau chiến đấu.' },
+      { type: 'update', description: 'Hội thoại NPC thông minh: Kết nối API để NPC phản hồi dựa trên tính cách và độ thân thiết.' },
+      { type: 'fix', description: 'Sửa lỗi các nút chức năng bị vô hiệu hóa (Combat, Dialogue).' },
+    ],
+  },
+  {
+    version: "2.5.3",
+    date: "2024-09-09",
     changes: [
       { type: 'balance', description: 'Đại tu sức mạnh Thú Cưng: Tăng mạnh các hệ số HP, Tấn công và Phòng thủ để thú cưng đóng vai trò quan trọng hơn (Tanker/DPS) ở giai đoạn sau.' },
       { type: 'new', description: 'Cơ chế Tiến Hóa Thú Cưng: Thú cưng đã tiến hóa nhận thêm 20% chỉ số tổng và khả năng Hút máu (Lifesteal) bẩm sinh.' },
