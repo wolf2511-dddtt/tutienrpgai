@@ -2,23 +2,48 @@
 import { GoogleGenAI, GenerateContentResponse, Type, HarmCategory, HarmBlockThreshold, Modality } from "@google/genai";
 // Fix: Corrected import path for types.
 import { Character, DesignedWorld, Faction, FactionType, ImageLibraryItem, LogType, Quest, QuestStatus, QuestType, StoryInfo, TerrainType, WorldSummary, Element } from "../types";
+import { loadApiKeys } from "./storageService";
 
-let ai: GoogleGenAI;
+let ai: GoogleGenAI | null = null;
 
 const initializeClient = () => {
-    if (!process.env.API_KEY) {
-        throw new Error("API_KEY environment variable not set.");
+    // Priority: 1. Environment Variable, 2. Local Storage settings
+    let key = process.env.API_KEY;
+    
+    if (!key || key === 'undefined') {
+        const storedKeys = loadApiKeys();
+        if (storedKeys && storedKeys.length > 0) {
+            key = storedKeys[0];
+        }
     }
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    if (key && key !== 'undefined') {
+        try {
+            ai = new GoogleGenAI({ apiKey: key });
+        } catch (e) {
+            console.error("Failed to initialize AI client:", e);
+        }
+    } else {
+        console.warn("API Key not found in environment or storage. AI features will be disabled until configured.");
+    }
 };
 
-// Initialize on load
+// Initialize on load, but do not crash if it fails
 initializeClient();
 
 export const reinitializeAiClient = () => {
-    // Per guidelines, API key is from env vars, so re-initializing is straightforward
     console.log("Re-initializing AI client...");
     initializeClient();
+};
+
+const getAiClient = () => {
+    if (!ai) {
+        initializeClient();
+        if (!ai) {
+            throw new Error("Chưa cấu hình API Key. Vui lòng vào mục Cài Đặt (Settings) để nhập Google Gemini API Key.");
+        }
+    }
+    return ai;
 };
 
 const safetySettings = [
@@ -44,7 +69,8 @@ const safetySettings = [
 
 export const generateImage = async (prompt: string): Promise<{ imageUrl?: string; error?: string }> => {
     try {
-        const response = await ai.models.generateImages({
+        const client = getAiClient();
+        const response = await client.models.generateImages({
             model: 'imagen-4.0-generate-001',
             prompt: `cinematic fantasy art, ${prompt}`,
             config: {
@@ -99,7 +125,8 @@ export const generateAIDescriptionForImage = async (imageUrl: string): Promise<{
     }
 
     try {
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: {
                 parts: [
@@ -109,7 +136,7 @@ export const generateAIDescriptionForImage = async (imageUrl: string): Promise<{
             },
         });
 
-        return { description: response.text.trim() };
+        return { description: response.text?.trim() };
     } catch (e: any) {
         console.error("Error generating image description:", e);
         return { error: e.message || "Lỗi không xác định khi tạo mô tả." };
@@ -123,7 +150,8 @@ export const generateAITagsForImage = async (imageUrl: string, description: stri
     }
     
     try {
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: {
                 parts: [
@@ -133,7 +161,7 @@ export const generateAITagsForImage = async (imageUrl: string, description: stri
             },
         });
 
-        const tags = response.text.split(';').map(t => t.trim()).filter(Boolean);
+        const tags = response.text?.split(';').map(t => t.trim()).filter(Boolean);
         return { tags };
     } catch (e: any) {
         console.error("Error generating image tags:", e);
@@ -146,7 +174,8 @@ export const generateWorldDesignerContent = async (prompt: string, useJson: bool
     try {
         // Updated to gemini-3-pro-preview for complex creative tasks
         // Added thinkingConfig for deeper world logic coherence
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: "gemini-3-pro-preview",
             contents: prompt,
             config: {
@@ -156,7 +185,7 @@ export const generateWorldDesignerContent = async (prompt: string, useJson: bool
             },
         });
 
-        return JSON.parse(response.text);
+        return JSON.parse(response.text || '{}');
 
     } catch (e: any) {
         console.error("Error generating world content:", e);
@@ -173,7 +202,8 @@ export const summarizeDesignedWorld = async (worldData: DesignedWorld, mode: 'cr
 
     try {
         // Updated to gemini-3-pro-preview for better comprehension of complex JSON structures
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: "gemini-3-pro-preview",
             contents: prompt,
             config: {
@@ -188,7 +218,7 @@ export const summarizeDesignedWorld = async (worldData: DesignedWorld, mode: 'cr
                 },
             },
         });
-        return JSON.parse(response.text);
+        return JSON.parse(response.text || '{}');
 
     } catch (e: any) {
         console.error("Error summarizing world:", e);
@@ -241,7 +271,8 @@ export const generateCharacterDetails = async (
 
     try {
         // Updated to gemini-3-pro-preview for richer storytelling
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: "gemini-3-pro-preview",
             contents: prompt,
             config: {
@@ -251,7 +282,7 @@ export const generateCharacterDetails = async (
             },
             safetySettings,
         });
-        return JSON.parse(response.text);
+        return JSON.parse(response.text || '{}');
     } catch (e: any) {
         console.error("Error generating character details:", e);
         // Fallback in case of API error
@@ -287,7 +318,8 @@ export const processPlayerAction = async (character: Character, terrain: string,
     `;
 
     try {
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
@@ -297,10 +329,10 @@ export const processPlayerAction = async (character: Character, terrain: string,
             },
         });
 
-        return response.text.trim();
+        return response.text?.trim() || "Không có phản hồi từ thế giới.";
     } catch (e: any) {
         console.error("Error processing player action:", e);
-        return "Thế giới dường như không phản hồi lại hành động của bạn. Có lẽ một sức mạnh vô hình nào đó đang cản trở.";
+        return "Thế giới dường như không phản hồi lại hành động của bạn. Có lẽ một sức mạnh vô hình nào đó đang cản trở. (Lỗi kết nối AI)";
     }
 };
 
@@ -317,7 +349,8 @@ export const generateContextualActions = async (character: Character, terrain: s
     `;
 
     try {
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
@@ -325,7 +358,7 @@ export const generateContextualActions = async (character: Character, terrain: s
             }
         });
         
-        const text = response.text;
+        const text = response.text || "";
         return text.split(/[;,]/).map(s => s.trim()).filter(s => s.length > 0 && s.length < 30).slice(0, 4);
     } catch (e) {
         console.error("Error generating actions", e);
@@ -376,14 +409,15 @@ export const generateStrategicAdvice = async (character: Character, terrain: str
     `;
 
     try {
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: 'gemini-3-pro-preview', 
             contents: prompt,
             config: {
                 temperature: 0.7,
             }
         });
-        return response.text.trim();
+        return response.text?.trim() || "Hãy cẩn trọng.";
     } catch (e) {
         console.error("Error generating advice", e);
         return "Tâm trí ta đang hỗn loạn, không thể đưa ra lời khuyên lúc này.";
@@ -403,7 +437,8 @@ export const searchCultivationKnowledge = async (query: string): Promise<{ text:
     `;
 
     try {
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
@@ -416,7 +451,7 @@ export const searchCultivationKnowledge = async (query: string): Promise<{ text:
             .filter(Boolean);
 
         return {
-            text: response.text.trim(),
+            text: response.text?.trim() || "Không tìm thấy thông tin.",
             sources: sources as {uri: string, title: string}[]
         };
     } catch (e: any) {
@@ -456,7 +491,8 @@ export const generateSectMission = async (faction: Faction, characterRank: strin
     };
 
     try {
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: "gemini-3-pro-preview",
             contents: prompt,
             config: {
@@ -465,7 +501,7 @@ export const generateSectMission = async (faction: Faction, characterRank: strin
                 temperature: 0.9,
             },
         });
-        return JSON.parse(response.text);
+        return JSON.parse(response.text || '{}');
     } catch (e: any) {
         console.error("Error generating sect mission:", e);
         throw new Error("Không thể tạo nhiệm vụ lúc này.");
@@ -520,7 +556,8 @@ export const generateDialogueResponse = async (
     };
 
     try {
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: "gemini-3-pro-preview",
             contents: prompt,
             config: {
@@ -529,11 +566,11 @@ export const generateDialogueResponse = async (
                 temperature: 0.8,
             },
         });
-        const result = JSON.parse(response.text);
+        const result = JSON.parse(response.text || '{}');
         return {
-            text: result.text,
-            options: result.options,
-            newAffinity: Math.max(-100, Math.min(100, npcAffinity + result.affinityChange))
+            text: result.text || "...",
+            options: result.options || ["Kết thúc"],
+            newAffinity: Math.max(-100, Math.min(100, npcAffinity + (result.affinityChange || 0)))
         };
     } catch (e: any) {
         console.error("Error generating dialogue:", e);
@@ -550,7 +587,8 @@ export const generateDialogueResponse = async (
 
 export const generateSpeech = async (text: string, voice: 'Kore' | 'Puck' | 'Charon' | 'Fenrir' | 'Zephyr' = 'Kore'): Promise<string | undefined> => {
     try {
-        const response = await ai.models.generateContent({
+        const client = getAiClient();
+        const response = await client.models.generateContent({
             model: 'gemini-2.5-flash-preview-tts',
             contents: { parts: [{ text }] },
             config: {
