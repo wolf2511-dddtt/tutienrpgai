@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { generateWorldDesignerContent, summarizeDesignedWorld } from '../services/geminiService';
@@ -81,7 +82,28 @@ const WorldDesigner = () => {
             setAnalysisResults(result);
         } catch (e: any) {
             console.error(`Error processing world design:`, e);
-            setError(e.message || 'Lỗi không xác định');
+            let errorMessage = e.message || 'Lỗi không xác định';
+            
+            // Clean up raw JSON errors from API
+            if (errorMessage.includes('{') && errorMessage.includes('error')) {
+                try {
+                    const match = errorMessage.match(/\{.*\}/s);
+                    if (match) {
+                        const errorObj = JSON.parse(match[0]);
+                        if (errorObj.error && errorObj.error.message) {
+                            errorMessage = errorObj.error.message;
+                        }
+                    }
+                } catch (jsonError) {
+                    // Ignore parsing error
+                }
+            }
+
+            if (errorMessage.includes('API key not valid')) {
+                errorMessage = "API Key không hợp lệ hoặc bị thiếu. Vui lòng kiểm tra cấu hình hoặc nhập Key trong phần Cài Đặt.";
+            }
+
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -115,7 +137,7 @@ const WorldDesigner = () => {
         };
 
         return (
-            <div className="bg-gray-700 p-6 rounded-xl shadow-inner border border-gray-600 mt-8 space-y-8">
+            <div className="bg-gray-700 p-6 rounded-xl shadow-inner border border-gray-600 mt-8 space-y-8 animate-fade-in">
                 <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 mb-2 text-center">
                     {analysisResults.worldName || "Kết Quả Phân Tích"}
                 </h2>
@@ -210,7 +232,15 @@ const WorldDesigner = () => {
                         <span>AI đang kiến tạo vũ trụ... Xin chờ trong giây lát.</span>
                     </div>
                 )}
-                {error && <div className="bg-red-800 text-red-200 p-4 rounded-lg my-6 border border-red-700"><p className="font-bold">Lỗi:</p><p>{error}</p></div>}
+                {error && (
+                    <div className="bg-red-900/50 text-red-200 p-4 rounded-lg my-6 border border-red-500/50 flex items-start gap-3 animate-fade-in">
+                        <span className="text-2xl">⚠️</span>
+                        <div>
+                            <p className="font-bold">Đã xảy ra lỗi:</p>
+                            <p>{error}</p>
+                        </div>
+                    </div>
+                )}
                 
                 {analysisResults && renderResults()}
             </div>
