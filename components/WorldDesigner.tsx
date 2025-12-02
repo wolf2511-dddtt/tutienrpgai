@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { generateWorldDesignerContent, summarizeDesignedWorld } from '../services/geminiService';
@@ -13,10 +12,10 @@ const WorldDesigner = () => {
         "Lịch Sử", "Võng Du", "Mạt Thế", "Linh Dị"
     ];
 
-    const [mode, setMode] = useState<'create' | 'analyze'>('create');
+    const [mode, setMode] = useState<'create' | 'analyze'>('analyze');
     const [selectedGenre, setSelectedGenre] = useState('');
-    const [storyTitle, setStoryTitle] = useState('');
-    const [authorName, setAuthorName] = useState('');
+    const [storyTitle, setStoryTitle] = useState('thôn phệ tinh không');
+    const [authorName, setAuthorName] = useState('Ngã Dục Tây Hồng Cật');
     
     const [analysisResults, setAnalysisResults] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -198,7 +197,7 @@ const WorldDesigner = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-700 text-gray-100 p-4 sm:p-8 flex flex-col items-center">
              <button onClick={handleBackToMenu} className="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl z-10">&times;</button>
-            <div className="w-full max-w-4xl bg-gray-800 rounded-xl shadow-2xl p-6 sm:p-10 border border-gray-700">
+            <div className="w-full max-w-4xl bg-gray-800 rounded-xl shadow-2xl p-6 sm:p-10 border border-gray-700 max-h-[90vh] overflow-y-auto">
                 <h1 className="text-4xl font-extrabold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-8">Sáng Tạo & Phân Tích Thế Giới</h1>
                 
                 <div className="mb-8 flex border-b border-gray-600">

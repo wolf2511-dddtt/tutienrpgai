@@ -206,7 +206,7 @@ const CharacterCreator = () => {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-2xl bg-gray-800 p-8 rounded-2xl shadow-2xl border border-purple-500/30 relative">
+            <div className="w-full max-w-2xl bg-gray-800 p-8 rounded-2xl shadow-2xl border border-purple-500/30 relative max-h-[90vh] overflow-y-auto">
                 <h1 className="text-3xl font-bold text-center text-purple-400 mb-2">Tạo Anh Hùng</h1>
                 <p className="text-center text-gray-400 mb-6">Bước cuối: Định hình nhân vật của bạn trong thế giới "{designedWorldPrompt?.keywords || '...'}"</p>
                 
