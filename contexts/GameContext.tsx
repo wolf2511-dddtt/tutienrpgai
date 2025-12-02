@@ -803,10 +803,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setWorldState({ ...worldState, pois: updatedPois });
 
         try {
+            // Fix: Corrected function call to pass all required arguments for the dialogue generation.
             const response = await generateDialogueResponse(
                 poi.dialogue.npcName,
                 poi.dialogue.npcRole,
-                "Bình thường", // Could be stored in POI
+                "Bình thường", // Mood can be dynamic in the future
                 poi.dialogue.affinity,
                 message,
                 poi.dialogue.history

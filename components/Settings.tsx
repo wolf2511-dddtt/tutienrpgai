@@ -80,12 +80,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                     {/* API Keys Section */}
                     <div className="bg-gray-800 p-4 rounded-lg">
                         <h3 className="text-lg font-semibold mb-2 text-purple-300">Google Gemini API Keys</h3>
-                        <p className="text-sm text-gray-400 mb-2">Nhập một hoặc nhiều API Key, mỗi key một dòng. Ứng dụng sẽ tự động xoay vòng các key này.</p>
+                        <p className="text-sm text-gray-400 mb-2">Nhập API Key của bạn tại đây. Nếu bạn đặt biến môi trường API_KEY, nó sẽ được ưu tiên sử dụng.</p>
                         <textarea
                             value={apiKeysInput}
                             onChange={(e) => setApiKeysInput(e.target.value)}
                             rows={4}
-                            placeholder="...key1...\n...key2..."
+                            placeholder="Nhập API Key của bạn..."
                             className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 focus:border-purple-500 outline-none"
                         />
                     </div>

@@ -1,6 +1,4 @@
 
-
-// Fix: Corrected import paths for types and constants.
 import { AppSettings, SaveFile, SaveSlot } from '../types';
 import { NUM_SAVE_SLOTS, LOCAL_STORAGE_KEY_SETTINGS, LOCAL_STORAGE_KEY_SAVE_GAME, DEFAULT_SETTINGS } from '../constants';
 

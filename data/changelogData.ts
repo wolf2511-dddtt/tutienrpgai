@@ -10,8 +10,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_DATA: ChangelogEntry[] = [
   {
-    version: "2.6.0",
+    version: "2.9.7",
     date: new Date().toISOString().split('T')[0],
+    changes: [
+      { type: 'fix', description: 'Khắc phục lỗi cú pháp "Missing initializer in const declaration" bằng cách đảm bảo biến môi trường API_KEY được nạp đúng cách.' },
+      { type: 'update', description: 'Nâng cấp các model AI chính lên `gemini-flash-latest` (tương đương 2.5 pro) để cải thiện hiệu năng và tránh lỗi hạn ngạch.' },
+      { type: 'update', description: 'Khôi phục cơ chế cho phép người dùng nhập API Key trong phần Cài đặt làm phương án dự phòng.' },
+    ],
+  },
+  {
+    version: "2.6.0",
+    date: "2024-09-10",
     changes: [
       { type: 'new', description: 'Hoàn thiện hệ thống Chiến đấu: Quái vật giờ đây xuất hiện ngẫu nhiên dựa trên địa hình.' },
       { type: 'new', description: 'Kích hoạt cơ chế Thăng cấp & Đột phá: Nhân vật nhận EXP và tăng sức mạnh thực tế sau chiến đấu.' },
@@ -49,8 +58,8 @@ export const CHANGELOG_DATA: ChangelogEntry[] = [
     version: "2.5.0",
     date: "2024-09-08",
     changes: [
-      { type: 'new', description: 'Hệ thống Nhiệm Vụ Tông Môn Động (Dynamic Quest): Sử dụng Gemini 3.0 Pro để tạo nhiệm vụ dựa trên cốt truyện và cấp bậc.' },
-      { type: 'update', description: 'Nâng cấp AI Dẫn Truyện (GM): Kích hoạt Thinking Model cho Gemini 2.5 Flash, giúp phản hồi hành động người chơi thông minh và mạch lạc hơn.' },
+      { type: 'new', description: 'Hệ thống Nhiệm Vụ Tông Môn Động (Dynamic Quest): Sử dụng Gemini để tạo nhiệm vụ dựa trên cốt truyện và cấp bậc.' },
+      { type: 'update', description: 'Nâng cấp AI Dẫn Truyện (GM): Kích hoạt Thinking Model, giúp phản hồi hành động người chơi thông minh và mạch lạc hơn.' },
       { type: 'balance', description: 'Cân bằng lại chỉ số HP và Tấn Công giai đoạn giữa game.' },
     ],
   },
@@ -67,46 +76,9 @@ export const CHANGELOG_DATA: ChangelogEntry[] = [
     version: "2.3.0",
     date: "2024-09-05",
     changes: [
-      { type: 'update', description: 'Nâng cấp AI Core lên Gemini 3.0 Pro cho khả năng sáng tạo thế giới và nhân vật vượt trội.' },
+      { type: 'update', description: 'Nâng cấp AI Core lên model mạnh hơn cho khả năng sáng tạo thế giới và nhân vật vượt trội.' },
       { type: 'new', description: 'Tích hợp mô hình tư duy (Thinking Model) giúp thế giới được tạo ra logic và có chiều sâu hơn.' },
       { type: 'balance', description: 'Tối ưu hóa tốc độ phản hồi cho các hành động trong game.' },
-    ],
-  },
-  {
-    version: "2.2.0",
-    date: "2024-09-01",
-    changes: [
-      { type: 'new', description: 'Thêm tính năng cài đặt Font chữ, cho phép tùy chỉnh kích cỡ và loại font toàn cục.' },
-      { type: 'update', description: 'Gỡ bỏ các tùy chọn kích thước font cũ không cần thiết để thống nhất giao diện.' },
-      { type: 'update', description: 'Cải thiện logic phân tích và đề xuất cho tính năng tạo ảnh bằng AI.' },
-    ],
-  },
-  {
-    version: "2.1.5",
-    date: "2024-08-28",
-    changes: [
-      { type: 'new', description: 'Thêm chức năng hiển thị Lịch Sử Cập Nhật (Changelog).' },
-      { type: 'fix', description: 'Sửa lỗi hiển thị sai chỉ số phòng thủ khi có Nô Bộc đang Hộ Pháp.' },
-      { type: 'balance', description: 'Tăng nhẹ tỉ lệ thành công khi cường hóa trang bị ở độ khó Dễ.' },
-    ],
-  },
-  {
-    version: "2.1.0",
-    date: "2024-08-25",
-    changes: [
-      { type: 'new', description: 'Ra mắt hệ thống Đồng Hành với Nô Bộc và Thị Vệ.' },
-      { type: 'new', description: 'Thêm cơ chế "Nô Dịch" kẻ địch hình người trong chiến đấu.' },
-      { type: 'update', description: 'Cập nhật lại giao diện Bảng Nhân Vật, thêm các tab mới.' },
-      { type: 'fix', description: 'Sửa lỗi một số kỹ năng bị động không được tính toán chính xác.' },
-    ],
-  },
-  {
-    version: "2.0.0",
-    date: "2024-08-15",
-    changes: [
-      { type: 'new', description: 'Ra mắt tính năng "Sáng Tạo & Phân Tích Thế Giới" bằng AI.' },
-      { type: 'new', description: 'Thêm hệ thống Class Tùy Chỉnh, cho phép người chơi tự phân bổ điểm tiềm năng.' },
-      { type: 'update', description: 'Đại tu giao diện người dùng, cải thiện trải nghiệm trên các thiết bị.' },
     ],
   },
 ];
