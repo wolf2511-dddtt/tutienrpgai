@@ -198,9 +198,12 @@ export enum DungeonFloorType {
 }
 
 export enum ColorTheme {
+    DEFAULT = 'default',
+    DEUTERANOPIA = 'deuteranopia',
+    TRITANOPIA = 'tritanopia',
+    HIGH_CONTRAST = 'high-contrast',
+    SEPIA = 'sepia',
     DARK_PURPLE = 'dark-purple',
-    LIGHT_BLUE = 'light-blue',
-    FOREST_GREEN = 'forest-green',
 }
 
 // Interfaces and Types
@@ -431,6 +434,8 @@ export interface Quest {
         reputationChange?: { factionId: number, amount: number }[];
         contributionPoints?: number;
     };
+    giverPoiId?: number;
+    giverNpcName?: string;
 }
 
 export interface StoryInfo {
@@ -567,6 +572,7 @@ export interface DialogueState {
     factionName?: string;
     preferredElement?: string;
     weakness?: string;
+    questOffer?: Omit<Quest, 'id' | 'status'>;
 }
 
 export interface DungeonFloor {

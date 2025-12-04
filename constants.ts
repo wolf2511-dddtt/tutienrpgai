@@ -1,4 +1,3 @@
-// Fix: Recreated the entire constants.ts file to define all necessary constants for the application.
 import { AppSettings, Rarity, Stat, ItemType, Difficulty, MonsterRank, UpgradeMaterial, UpgradeConsumable, ColorTheme, DisplaySettings, Element, PlayerClass, BaseStats } from './types';
 
 export const NUM_SAVE_SLOTS = 5;

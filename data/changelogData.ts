@@ -1,4 +1,3 @@
-
 export interface ChangelogEntry {
   version: string;
   date: string;
@@ -10,8 +9,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_DATA: ChangelogEntry[] = [
   {
-    version: "2.9.7",
+    version: "3.0.0",
     date: new Date().toISOString().split('T')[0],
+    changes: [
+      { type: 'new', description: 'Hoàn thiện Hệ thống Bí Cảnh (Dungeons): AI giờ đây có thể tự động tạo ra các bí cảnh độc đáo khi người chơi khám phá.' },
+      { type: 'new', description: 'Kích hoạt Hệ thống Nhiệm vụ Động: NPC có thể tự đề xuất nhiệm vụ cho người chơi trong quá trình hội thoại.' },
+      { type: 'fix', description: 'Sửa lỗi logic nghiêm trọng trong việc tính toán bonus từ bộ trang bị, đảm bảo chỉ số được cộng chính xác.' },
+      { type: 'fix', description: 'Khắc phục lỗi cú pháp "Missing initializer" khiến ứng dụng không thể khởi chạy.' },
+      { type: 'update', description: 'Cài đặt và hoàn thiện các chức năng gameplay cốt lõi còn thiếu (chiến đấu, thăng cấp, hội thoại, v.v.).' },
+      { type: 'balance', description: 'Nâng cấp các model AI chính để cải thiện hiệu năng và tránh lỗi hạn ngạch.' },
+    ],
+  },
+  {
+    version: "2.9.7",
+    date: "2024-09-12",
     changes: [
       { type: 'fix', description: 'Khắc phục lỗi cú pháp "Missing initializer in const declaration" bằng cách đảm bảo biến môi trường API_KEY được nạp đúng cách.' },
       { type: 'update', description: 'Nâng cấp các model AI chính lên `gemini-flash-latest` (tương đương 2.5 pro) để cải thiện hiệu năng và tránh lỗi hạn ngạch.' },

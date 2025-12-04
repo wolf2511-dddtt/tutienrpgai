@@ -73,24 +73,37 @@ const safetySettings = [
 
 // --- Image Generation & Analysis ---
 
+// Fix: Updated to use generateContent with a Gemini model for image generation per guidelines, and added robust response handling.
 export const generateImage = async (prompt: string): Promise<{ imageUrl?: string; error?: string }> => {
     try {
         const client = getAiClient();
-        const response = await client.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: `cinematic fantasy art, ${prompt}`,
+        const response = await client.models.generateContent({
+            model: 'gemini-2.5-flash-image',
+            contents: {
+                parts: [{ text: `cinematic fantasy art, ${prompt}` }],
+            },
             config: {
-                numberOfImages: 1,
-                outputMimeType: 'image/jpeg',
-                aspectRatio: '1:1',
+                imageConfig: {
+                    aspectRatio: "1:1",
+                },
             },
         });
 
-        if (response.generatedImages && response.generatedImages.length > 0) {
-            const base64ImageBytes = response.generatedImages[0].image.imageBytes;
-            return { imageUrl: `data:image/jpeg;base64,${base64ImageBytes}` };
+        const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+
+        if (imagePart && imagePart.inlineData) {
+            const base64EncodeString: string = imagePart.inlineData.data;
+            const mimeType = imagePart.inlineData.mimeType;
+            return { imageUrl: `data:${mimeType};base64,${base64EncodeString}` };
         }
-        return { error: "Không thể tạo ảnh từ mô tả." };
+        
+        // Handle cases where no image is returned, but text might be (e.g., safety rejection)
+        const textResponse = response.text;
+        if (textResponse) {
+             return { error: `Không thể tạo ảnh. Phản hồi từ AI: ${textResponse}` };
+        }
+
+        return { error: "Không thể tạo ảnh từ mô tả. Không tìm thấy dữ liệu ảnh trong phản hồi." };
     } catch (e: any) {
         console.error("Error generating image:", e);
         return { error: e.message || "Lỗi không xác định khi tạo ảnh." };
@@ -179,7 +192,8 @@ export const generateWorldDesignerContent = async (prompt: string, useJson: bool
     try {
         const client = getAiClient();
         const response = await client.models.generateContent({
-            model: "gemini-flash-latest",
+            // Fix: Upgraded model to handle complex world generation task.
+            model: "gemini-3-pro-preview",
             contents: prompt,
             config: {
                 responseMimeType: useJson ? "application/json" : "text/plain",
@@ -274,7 +288,8 @@ export const generateCharacterDetails = async (
     try {
         const client = getAiClient();
         const response = await client.models.generateContent({
-            model: "gemini-flash-latest",
+            // Fix: Upgraded model to handle complex character generation.
+            model: "gemini-3-pro-preview",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -475,7 +490,8 @@ export const generateSectMission = async (faction: Faction, characterRank: strin
     try {
         const client = getAiClient();
         const response = await client.models.generateContent({
-            model: "gemini-flash-latest",
+            // Fix: Upgraded model for better quality quest generation.
+            model: "gemini-3-pro-preview",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -561,7 +577,8 @@ export const generateDialogueResponse = async (
     try {
         const client = getAiClient();
         const response = await client.models.generateContent({
-            model: "gemini-flash-latest",
+            // Fix: Upgraded model for more creative and context-aware dialogue.
+            model: "gemini-3-pro-preview",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",

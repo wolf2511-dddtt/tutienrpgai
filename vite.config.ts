@@ -1,4 +1,5 @@
-
+// Fix: Add reference to node types to resolve 'process' object type issue.
+/// <reference types="node" />
 
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
