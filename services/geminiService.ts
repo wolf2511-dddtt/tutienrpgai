@@ -288,6 +288,7 @@ export const generateCharacterDetails = async (
 
     try {
         const client = getAiClient();
+// Fix: Removed 'safetySettings' as it is not a valid property on 'GenerateContentParameters' in this version.
         const response = await client.models.generateContent({
             // Fix: Upgraded model to handle complex character generation.
             model: "gemini-3-pro-preview",
@@ -296,8 +297,6 @@ export const generateCharacterDetails = async (
                 responseMimeType: "application/json",
                 responseSchema: schema,
                 temperature: 0.85,
-// FIX: Moved safetySettings into the config object.
-                safetySettings,
             },
         });
         return JSON.parse(response.text || '{}');
@@ -710,8 +709,12 @@ export const generateDungeon = async (poi: Poi, characterLevel: number): Promise
     }
 };
 
-// --- NEW: Random Event Generation ---
-export const generateRandomEvent = async (character: Character, terrain: string): Promise<RandomEvent> => {
+// --- Random Event Generation ---
+export const generateRandomEvent = async (character: Character, terrain: string, availableMonsters: string[]): Promise<RandomEvent> => {
+    const monsterListInstruction = availableMonsters.length > 0
+        ? `Nếu kết quả là 'COMBAT', trường 'monsterName' BẮT BUỘC phải là một trong các tên sau: [${availableMonsters.join(', ')}].`
+        : "KHÔNG tạo ra kết quả 'COMBAT' vì không có quái vật phù hợp.";
+    
     const prompt = `
     Bối cảnh: Game RPG tu tiên.
     Nhân vật: ${character.name}, Cấp ${character.level}, đang ở khu vực ${terrain}.
@@ -724,6 +727,8 @@ export const generateRandomEvent = async (character: Character, terrain: string)
     - 'COMBAT': Bắt đầu một trận chiến (monsterName).
     - 'REPUTATION': Thay đổi danh vọng (factionId - không dùng lúc này, bỏ qua).
     - 'NARRATIVE': Chỉ là một đoạn văn tường thuật kết quả.
+    
+    ${monsterListInstruction}
     
     YÊU CẦU: Trả về một đối tượng JSON duy nhất theo cấu trúc đã định.
     `;
@@ -779,5 +784,42 @@ export const generateRandomEvent = async (character: Character, terrain: string)
     } catch (e: any) {
         console.error("Error generating random event:", e);
         throw new Error("Không thể tạo sự kiện ngẫu nhiên.");
+    }
+};
+
+
+// --- Proactive AI Narration ---
+export const generateProactiveNarration = async (character: Character, terrain: string, recentLogs: string[]): Promise<string> => {
+    const prompt = `
+    Bối cảnh: Game RPG tu tiên. Bạn là người dẫn truyện AI.
+    Nhân vật: ${character.name}, Cấp ${character.level}, đang ở ${terrain}.
+    Sự kiện gần đây: ${recentLogs.join('; ')}
+
+    Nhiệm vụ của bạn là tạo ra một đoạn văn tường thuật ngắn (1-2 câu) để làm cho thế giới trở nên sống động hơn.
+    KHÔNG tạo ra sự kiện, KHÔNG cho vật phẩm, KHÔNG bắt đầu chiến đấu.
+    Chỉ mô tả không khí, môi trường, một chi tiết nhỏ, hoặc suy nghĩ nội tâm của nhân vật.
+
+    Ví dụ:
+    - "Khi bạn đi qua khu rừng, một cơn gió lạnh lẽo bất chợt thổi qua, mang theo tiếng lá cây xào xạc như lời thì thầm từ ngàn xưa."
+    - "Ánh trăng bàng bạc chiếu rọi con đường mòn, xa xa vọng lại tiếng côn trùng rả rích."
+    - "Bạn bất chợt cảm thấy một luồng linh khí quen thuộc, dường như có một vị cao nhân nào đó vừa đi qua đây."
+
+    Hãy tạo ra một lời kể phù hợp với bối cảnh hiện tại. Chỉ trả về một chuỗi văn bản duy nhất.
+    `;
+
+    try {
+        const client = getAiClient();
+// Fix: Removed 'safetySettings' as it is not a valid property on 'GenerateContentParameters' in this version.
+        const response = await client.models.generateContent({
+            model: "gemini-3-pro-preview",
+            contents: prompt,
+            config: {
+                temperature: 0.9,
+            },
+        });
+        return response.text?.trim() || "";
+    } catch (e: any) {
+        console.error("Error generating proactive narration:", e);
+        return ""; // Return empty string on error to not break the flow
     }
 };

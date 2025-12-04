@@ -455,6 +455,7 @@ export interface AppSettings {
     colorTheme: ColorTheme;
     reduceMotion: boolean;
     displaySettings: DisplaySettings;
+    proactiveNarrationFrequency: number;
 }
 
 export interface DisplaySettings {

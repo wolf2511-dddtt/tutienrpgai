@@ -98,6 +98,11 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                             value={currentSettings.eventFrequency} 
                             onChange={e => handleChange('eventFrequency', parseFloat(e.target.value))}
                         />
+                         <Slider 
+                            label="Tần suất Lời kể AI" 
+                            value={currentSettings.proactiveNarrationFrequency} 
+                            onChange={e => handleChange('proactiveNarrationFrequency', parseFloat(e.target.value))}
+                        />
                          <div>
                             <label className="block text-gray-300 mb-2">Tự động phân giải vật phẩm</label>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

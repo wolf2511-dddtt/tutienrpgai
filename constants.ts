@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     colorTheme: ColorTheme.DARK_PURPLE,
     reduceMotion: false,
     displaySettings: DEFAULT_DISPLAY_SETTINGS,
+    proactiveNarrationFrequency: 0.25,
 };
 
 export const RARITY_DATA: { [key in Rarity]: { color: string, borderColor: string, statBudget: number, maxUpgrade: number } } = {

@@ -9,6 +9,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "3.0.4",
+    date: new Date().toISOString().split('T')[0],
+    changes: [
+      { type: 'new', description: 'Thêm tính năng Lời Kể AI Chủ Động (Proactive Narration) để làm cho người dẫn truyện trở nên sống động và tự nhiên hơn.' },
+      { type: 'new', description: 'Thêm tùy chọn "Tần suất Lời kể AI" trong phần Cài đặt để người chơi có thể tùy chỉnh trải nghiệm.' },
+      { type: 'fix', description: 'Sửa lỗi nghiêm trọng "Monster template not found" bằng cách buộc AI phải chọn quái vật từ danh sách hợp lệ khi tạo Sự kiện Ngẫu nhiên.' },
+      { type: 'update', description: 'Nâng cấp model AI cho lời kể lên `gemini-3-pro-preview` để đảm bảo chất lượng văn học.' },
+    ],
+  },
+  {
     version: "3.0.3",
     date: new Date().toISOString().split('T')[0],
     changes: [

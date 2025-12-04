@@ -36,12 +36,14 @@ import {
     Dungeon,
     Element,
     FactionType,
-    Rarity
+    Rarity,
+    RandomEvent,
+    EventChoice,
 } from '../types';
 import { loadSettings, saveSettings, loadAllSaveSlots, saveGame, loadGame, deleteSave } from '../services/storageService';
 import { DEFAULT_SETTINGS, PLAYER_CLASS_BASE_STATS, UPGRADE_CONSUMABLES_DATA, UPGRADE_MATERIALS_DATA, PET_EVOLUTION_COST, PET_EVOLUTION_LEVEL, DIFFICULTY_MODIFIERS } from '../constants';
 import { calculateDerivedStats, getUpgradeCost, processItemUpgrade, calculatePetDerivedStats, getTerrainFromPosition, generateRandomRetainer, calculateRetainerStats, generateRandomMonster, calculateLevelUp, createMonster, generateItem } from '../services/gameLogic';
-import { generateCharacterDetails, generateSectMission, generateContextualActions, generateStrategicAdvice, generateDialogueResponse, generateDungeon } from '../services/geminiService';
+import { generateCharacterDetails, generateSectMission, generateContextualActions, generateStrategicAdvice, generateDialogueResponse, generateDungeon, processPlayerAction, generateRandomEvent, generateProactiveNarration } from '../services/geminiService';
 import { VAN_LINH_GIOI_POIS } from '../data/worldData';
 import { PREDEFINED_MONSTERS } from '../data/monsterData';
 
@@ -68,6 +70,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [oneTimeMessages, setOneTimeMessages] = useState<ExplorationEventLog[]>([]);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [imageLibrary, setImageLibrary] = useState<any[]>([]);
+    const [activeEvent, setActiveEvent] = useState<RandomEvent | null>(null);
     
     // --- Implemented Handlers ---
     const handleSettingsChange = (newSettings: AppSettings) => {
@@ -144,6 +147,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsGeneratingActions(false);
         }
     };
+    const clearContextualActions = () => setContextualActions([]);
 
     const handleGetAIAdvice = async () => {
         if (!character || isGeneratingActions) return;
@@ -1110,6 +1114,112 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsQuickPlayLoading(false);
     }, []);
 
+    const handlePlayerAction = async (action: string) => {
+        if (!character || isGeneratingActions) return;
+        setIsGeneratingActions(true);
+        clearContextualActions();
+        
+        const terrain = getTerrainFromPosition(character.position);
+        try {
+            const result = await processPlayerAction(character, terrain, action, appSettings.difficulty);
+            setOneTimeMessages([{ id: crypto.randomUUID(), text: result, type: LogType.NARRATIVE }]);
+
+            let didTriggerAction = false;
+            const combatKeywords = ['tấn công', 'đánh', 'chiến đấu', 'giao chiến', 'thử sức', 'gầm gừ', 'sát khí'];
+            if (combatKeywords.some(kw => result.toLowerCase().includes(kw))) {
+                handleStartCombat();
+                didTriggerAction = true;
+            }
+            else if (Math.random() < appSettings.eventFrequency) {
+                try {
+                    const availableMonsters = PREDEFINED_MONSTERS
+                        .filter(m => m.habitats.includes(terrain as any) && m.level < character.level + 10)
+                        .map(m => m.name);
+                    const event = await generateRandomEvent(character, terrain, availableMonsters);
+                    setActiveEvent(event);
+                    didTriggerAction = true;
+                } catch (e) {
+                    console.error("Failed to generate random event:", e);
+                }
+            }
+
+            if (!didTriggerAction && Math.random() < appSettings.proactiveNarrationFrequency) {
+                try {
+                    const recentLogs = oneTimeMessages.map(l => l.text).slice(0, 2);
+                    const narration = await generateProactiveNarration(character, terrain, recentLogs);
+                    if (narration) {
+                         // Use a function to update state to get the latest `oneTimeMessages`
+                        setOneTimeMessages(prev => [{ id: crypto.randomUUID(), text: narration, type: LogType.NARRATIVE }, ...prev]);
+                    }
+                } catch (e) {
+                     console.error("Failed to generate proactive narration:", e);
+                }
+            }
+
+        } catch (e: any) {
+            setOneTimeMessages([{ id: crypto.randomUUID(), text: e.message, type: LogType.ERROR }]);
+        } finally {
+            setIsGeneratingActions(false);
+        }
+    };
+
+    const handleResolveEventChoice = (choice: EventChoice) => {
+        if (!character || !activeEvent) return;
+
+        let newCharacter = { ...character };
+        const outcomeLogs: string[] = [];
+        let startCombatWith: string | undefined = undefined;
+
+        choice.outcomes.forEach(outcome => {
+            outcomeLogs.push(outcome.description);
+            switch(outcome.type) {
+                case 'STAT_CHANGE':
+                    if (outcome.stat && outcome.amount !== undefined) {
+                        const statKey = outcome.stat as 'currentHp' | 'currentMp';
+                        const changeAmount = outcome.isPercent 
+                            ? newCharacter.derivedStats[statKey === 'currentHp' ? 'HP' : 'MP'] * (outcome.amount/100)
+                            : outcome.amount;
+                        
+                        newCharacter[statKey] = Math.max(0, newCharacter[statKey] + changeAmount);
+                        if (statKey === 'currentHp') {
+                            newCharacter[statKey] = Math.min(newCharacter.derivedStats.HP, newCharacter[statKey]);
+                        } else {
+                            newCharacter[statKey] = Math.min(newCharacter.derivedStats.MP, newCharacter[statKey]);
+                        }
+                    }
+                    break;
+                case 'ITEM':
+                    // This requires a proper item generation or lookup. For now, we add a placeholder.
+                    // A full implementation would need to call generateItem or similar.
+                    const newItem: Item = {
+                        id: crypto.randomUUID(),
+                        name: outcome.itemName || "Vật phẩm lạ",
+                        description: "Một vật phẩm nhận được từ sự kiện",
+                        level: character.level,
+                        rarity: outcome.itemRarity || Rarity.COMMON,
+                        type: ItemType.PhụKiện, // Placeholder
+                        baseStats: {},
+                        bonusStats: {},
+                        upgradeLevel: 0,
+                        maxUpgrade: 5,
+                    };
+                    newCharacter.inventory.push(newItem);
+                    break;
+                case 'COMBAT':
+                    startCombatWith = outcome.monsterName;
+                    break;
+                // Other cases like REPUTATION can be added here
+            }
+        });
+        
+        setCharacter(newCharacter);
+        setOneTimeMessages(outcomeLogs.map(log => ({ id: crypto.randomUUID(), text: log, type: LogType.NARRATIVE })));
+        setActiveEvent(null);
+
+        if (startCombatWith) {
+            handleStartCombat(startCombatWith);
+        }
+    };
 
     const value: GameContextType = {
         screen,
@@ -1125,12 +1235,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         activePoiIdForDialogue,
         transientDialogue,
         contextualActions,
-// FIX: Changed `isGeneratingActions` to `isActionLocked` to match the GameContextType interface.
         isActionLocked: isGeneratingActions,
         levelUpInfo,
         oneTimeMessages,
         isFullscreen,
         imageLibrary,
+        activeEvent,
         handleSettingsChange,
         refreshSaveSlots,
         handleBackToMenu,
@@ -1142,7 +1252,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         handleOpenImageLibrary: () => setScreen(GameScreen.IMAGE_LIBRARY),
         handleUpgradeItem,
         handleGenerateContextualActions,
-        clearContextualActions: () => setContextualActions([]),
+        clearContextualActions,
         handleFeedPet,
         handleEvolvePet,
         handleCatchPet,
@@ -1153,7 +1263,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         handleLoadGame,
         handleSaveGame: (slotId) => { character && saveGame(slotId, { character, worldState, saveDate: new Date().toISOString()}); refreshSaveSlots(); },
         handleDeleteSave: (slotId) => { deleteSave(slotId); refreshSaveSlots(); },
-        
         handleAllocateStatPoint,
         handleEquipItem,
         handleUnequipItem,
@@ -1162,11 +1271,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         handleReleasePet,
         handleRenamePet,
         handleGetAIAdvice,
-
         handleRecruitRetainer,
         handleTrainRetainer,
         handleSetActiveRetainer,
-
         handleCreateGame,
         handleCombatEnd,
         handleContinueAfterCombat,
@@ -1174,7 +1281,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         handleActivateCultivationTechnique,
         handleSendDialogueMessage,
         handleContinueTransientDialogue,
-        
         handleProceedInDungeon,
         handleExitDungeon,
         handleAssignServantTask,
@@ -1187,6 +1293,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         handleOpenForge,
         handleOpenDialogue,
         handleCloseDialogue,
+        handlePlayerAction,
+        handleResolveEventChoice,
     };
 
     return (
