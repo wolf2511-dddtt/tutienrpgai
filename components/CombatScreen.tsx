@@ -1,21 +1,23 @@
 
 
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-// Fix: Corrected import paths for types and constants.
-import { Character, Item, UpgradeMaterial, AttackResult, Skill, SkillType, ActiveEffect, TargetType, Pet, Combatant, UpgradeConsumable, Rarity, CombatLogEntry, MonsterRank, Element, SkillEffectType } from '../types';
-import { performAttack, useSkill, generateItem } from '../services/gameLogic';
+import { Character, Item, UpgradeMaterial, AttackResult, Skill, SkillType, ActiveEffect, TargetType, Pet, Combatant, UpgradeConsumable, Rarity, CombatLogEntry, MonsterRank, Element, SkillEffectType, BossPhase } from '../types';
+import { performAttack, useSkill, generateItem, calculateDerivedStats, createMonster } from '../services/gameLogic';
 import ItemCard from './ItemCard';
 import { useGame } from '../contexts/GameContext';
 import { DIFFICULTY_MODIFIERS, MONSTER_RANK_MODIFIERS, ELEMENT_ICONS } from '../constants';
 import StatusEffectDisplay from './StatusEffectDisplay';
+import { BOSS_DEFINITIONS } from '../data/bossData';
+import { BOSS_SKILLS as ALL_SKILLS } from '../data/bossSkills';
 
 const CombatantDisplay: React.FC<{ combatant: Combatant, isPlayerSide: boolean, isActiveTurn: boolean }> = ({ combatant, isPlayerSide, isActiveTurn }) => {
     const hpPercentage = combatant.derivedStats.HP > 0 ? (combatant.currentHp / combatant.derivedStats.HP) * 100 : 0;
     const mpPercentage = 'currentMp' in combatant && combatant.derivedStats.MP > 0 ? (combatant.currentMp / combatant.derivedStats.MP) * 100 : 0;
 
     const isCharacter = 'playerClass' in combatant;
-    const combatantName = combatant.name;
+    const combatantName = ('bossInfo' in combatant && combatant.bossInfo && typeof combatant.currentPhaseIndex === 'number')
+        ? combatant.bossInfo.phases[combatant.currentPhaseIndex].name
+        : combatant.name;
     const isBoss = isCharacter && (combatant as Character).isBoss;
     const elements = 'linhCan' in combatant && combatant.linhCan ? combatant.linhCan.elements : [];
 
@@ -126,11 +128,18 @@ export const CombatScreen: React.FC = () => {
   useEffect(() => {
     combatEndedRef.current = false;
     setIsCombatOver(false);
+    
+    let enemyWithBossData = { ...initialEnemy };
+    if (enemyWithBossData.isBoss && BOSS_DEFINITIONS[enemyWithBossData.name]) {
+        enemyWithBossData.bossInfo = BOSS_DEFINITIONS[enemyWithBossData.name];
+        enemyWithBossData.currentPhaseIndex = 0;
+    }
+
 
     const activePet = player.activePetId ? player.pets.find(p => p.id === player.activePetId) : null;
     const activeRetainer = player.activeRetainerId ? player.retainers.find(r => r.id === player.activeRetainerId) : null;
     
-    const initialParticipants: Combatant[] = [player, initialEnemy];
+    const initialParticipants: Combatant[] = [player, enemyWithBossData];
     if (activePet) initialParticipants.push(activePet);
     if (activeRetainer) initialParticipants.push(activeRetainer);
 
@@ -317,11 +326,54 @@ export const CombatScreen: React.FC = () => {
     }, [turnIndex, addToLog, addFloatingText, player, endCombat]);
 
   const processAction = useCallback(async (result: AttackResult, attacker: Combatant, defender: Combatant, skill?: Skill) => {
-    addToLog(result.messages);
     let newAttackerState = { ...attacker };
-    let newDefenderState = { ...defender };
+    let newDefenderState = { ...defender } as Character; // Assume Character for boss logic
+
+    // Boss Phase Transition & Immunity Logic
+    if (newDefenderState.isBoss && newDefenderState.bossInfo) {
+        const currentPhase = newDefenderState.bossInfo.phases[newDefenderState.currentPhaseIndex || 0];
+        
+        // Check for immunity
+        if (currentPhase.isImmuneWhileMinionsExist) {
+            const minionsExist = participantsRef.current.some(p => p.name === 'Thánh Trí Mảnh Vỡ' && p.currentHp > 0);
+            if (minionsExist) {
+                addToLog(`${newDefenderState.name} được bảo vệ bởi các mảnh vỡ. Miễn nhiễm sát thương!`, 'narration');
+                result.damage = 0; // Nullify damage
+            }
+        }
+        
+        // Check for phase transition
+        const hpPercent = newDefenderState.currentHp / newDefenderState.derivedStats.HP;
+        const nextPhaseIndex = (newDefenderState.currentPhaseIndex || 0) + 1;
+        if (nextPhaseIndex < newDefenderState.bossInfo.phases.length) {
+            const nextPhase = newDefenderState.bossInfo.phases[nextPhaseIndex];
+            if (hpPercent <= nextPhase.hpThreshold) {
+                newDefenderState.currentPhaseIndex = nextPhaseIndex;
+                const originalStats = calculateDerivedStats(newDefenderState);
+                newDefenderState.derivedStats.ATK = Math.floor(originalStats.ATK * nextPhase.statMultiplier);
+                newDefenderState.derivedStats.DEF = Math.floor(originalStats.DEF * nextPhase.statMultiplier);
+                newDefenderState.skills = ALL_SKILLS.filter(s => nextPhase.skills.includes(s.id));
+                addToLog(`🔥 ${newDefenderState.name} chuyển sang ${nextPhase.name}! Sức mạnh của nó tăng vọt!`, 'narration');
+                
+                // Handle summoning for the new phase
+                const summonSkill = newDefenderState.skills.find(s => s.effects.some(e => e.type === SkillEffectType.SUMMON));
+                if (summonSkill) {
+                    const summonEffect = summonSkill.effects.find(e => e.type === SkillEffectType.SUMMON)!;
+                    const newMinions: Character[] = [];
+                    for(let i=0; i < (summonEffect.summonCount || 0); i++) {
+                         newMinions.push(createMonster(summonEffect.summonMonsterName!, newDefenderState.level));
+                    }
+                    if (newMinions.length > 0) {
+                        setParticipants(prev => [...prev, ...newMinions].sort((a,b) => b.derivedStats.Speed - a.derivedStats.Speed));
+                        addToLog(`${newDefenderState.name} sử dụng ${summonSkill.name}!`, 'action');
+                    }
+                }
+            }
+        }
+    }
 
     const isPlayerSideDefender = newDefenderState.id === player.id || newDefenderState.id === player.activePetId || newDefenderState.id === player.activeRetainerId;
+    addToLog(result.messages);
 
     if (result.damage > 0) {
         newDefenderState.currentHp = Math.max(0, newDefenderState.currentHp - result.damage);
@@ -361,7 +413,10 @@ export const CombatScreen: React.FC = () => {
 
     if (newDefenderState.currentHp <= 0) {
         addToLog(`${newDefenderState.name} đã bị đánh bại!`, 'system');
-        setTimeout(() => endCombat(!isPlayerSideDefender), 500);
+        const remainingEnemies = participantsRef.current.filter(p => p.id !== player.id && p.id !== player.activePetId && p.id !== player.activeRetainerId && p.currentHp > 0 && p.id !== newDefenderState.id);
+        if (remainingEnemies.length === 0) {
+             setTimeout(() => endCombat(true), 500);
+        }
     }
   }, [addToLog, endCombat, addFloatingText, updateMultipleParticipantsState, player.id, player.activePetId, player.activeRetainerId]);
 
@@ -512,122 +567,4 @@ useEffect(() => {
                     </div>
                 </div>
                 <div className="mt-12 flex items-center justify-center gap-3 text-xl text-gray-300 animate-pulse">
-                     <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                     <span>Chuẩn bị chiến đấu...</span>
-                </div>
-            </div>
-        </div>
-    );
-  }
-
-  const handleContinueAfterCombat = () => {
-    const finalPlayer = participantsRef.current.find(p => p.id === player.id) as Character;
-    const finalPet = participantsRef.current.find(p => p.id === player.activePetId) as Pet | undefined;
-    handleCombatEnd(!!rewards, finalPlayer, finalPet || null, rewards?.exp || 0, rewards?.items || [], rewards?.materials || {}, rewards?.consumables || {});
-  }
-  
-  return (
-    <div className={`min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-2 sm:p-4 transition-transform duration-500 ${shake ? 'animate-screen-shake' : ''}`}
-         style={{ backgroundImage: `url('https://i.pinimg.com/originals/a3/52/65/a35265a7593a1136293521d74a0063c8.gif')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
-        {/* Floating text container */}
-        <div className="absolute inset-0 pointer-events-none grid grid-cols-3 z-20">
-            {/* Player/Pet Side */}
-            <div className="relative">
-                 {floatingTexts.filter(t => t.side === 'player' || t.side === 'pet').map(t => (
-                    <span key={t.id} className={`absolute top-1/3 left-1/3 animate-float-up font-bold text-2xl ${t.type === 'damage' || t.type === 'dot' ? 'text-red-500' : (t.type === 'crit' ? 'text-yellow-400 text-3xl drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]' : 'text-green-400')} drop-shadow-lg`}>{t.text}</span>
-                 ))}
-            </div>
-            <div />
-            {/* Enemy Side */}
-            <div className="relative">
-                 {floatingTexts.filter(t => t.side === 'enemy').map(t => (
-                    <span key={t.id} className={`absolute top-1/3 left-1/3 animate-float-up font-bold text-2xl ${t.type === 'damage' || t.type === 'dot' ? 'text-red-500' : (t.type === 'crit' ? 'text-yellow-400 text-3xl drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]' : 'text-green-400')} drop-shadow-lg`}>{t.text}</span>
-                 ))}
-            </div>
-        </div>
-
-        <div className="relative z-10 w-full max-w-7xl h-[calc(100vh-2rem)] flex flex-col">
-            {/* Top Row: Combatants Display */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-2">
-                {playerInCombat ? <CombatantDisplay combatant={playerInCombat} isPlayerSide={true} isActiveTurn={participants[turnIndex]?.id === playerInCombat.id} /> : <div/>}
-                {petInCombat ? <CombatantDisplay combatant={petInCombat} isPlayerSide={true} isActiveTurn={participants[turnIndex]?.id === petInCombat.id} /> : (retainerInCombat ? <CombatantDisplay combatant={retainerInCombat} isPlayerSide={true} isActiveTurn={participants[turnIndex]?.id === retainerInCombat.id} /> : <div/>)}
-                {enemyInCombat ? <CombatantDisplay combatant={enemyInCombat} isPlayerSide={false} isActiveTurn={participants[turnIndex]?.id === enemyInCombat.id} />: <div/>}
-            </div>
-
-            {/* Middle Row: Turn Order */}
-            <TurnOrderDisplay participants={participants} currentIndex={turnIndex} />
-
-            {/* Bottom Row: Log and Actions */}
-            <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4 overflow-hidden h-48 sm:h-auto">
-                {/* Combat Log */}
-                <div className="md:col-span-2 bg-[var(--color-backdrop-bg)] backdrop-blur-md border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] p-2 sm:p-4 rounded-lg flex flex-col h-full overflow-hidden">
-                    <h3 className="text-lg font-bold text-gray-300 mb-2 flex-shrink-0">Nhật Ký Chiến Đấu</h3>
-                    <div className="flex-grow overflow-y-auto space-y-2 flex flex-col-reverse pr-2">
-                        {combatLog.map(log => (
-                             <p key={log.id} className={`text-sm animate-fade-in ${log.type === 'error' ? 'text-red-400' : (log.type === 'info' ? 'text-yellow-300' : (log.type === 'narration' ? 'text-purple-300 italic' : 'text-gray-300'))}`}>{log.text}</p>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Actions */}
-                <div className="relative bg-[var(--color-backdrop-bg)] backdrop-blur-md border border-[var(--color-primary)] shadow-[0_0_8px_var(--color-primary-dark)] p-2 sm:p-4 rounded-lg flex flex-col justify-center">
-                     {isPlayerTurn && !isCombatOver && (
-                        <div className="space-y-2 animate-fade-in">
-                            <h3 className="text-lg font-bold text-purple-300 text-center mb-2">Đến lượt bạn!</h3>
-                            <button onClick={handleAttack} className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 font-bold p-3 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-lg">Tấn Công</button>
-                            <button onClick={() => setShowSkillList(true)} className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 font-bold p-3 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-lg">Kỹ Năng</button>
-                            {canCatchPet && <button onClick={handleCatchAttempt} className="w-full bg-gradient-to-r from-green-600 to-green-800 hover:from-green-500 hover:to-green-700 font-bold p-2 rounded-lg text-sm transition-transform transform hover:scale-105 shadow-md">Thu Phục ({linhThuPhuCount})</button>}
-                            {canEnslave && <button onClick={handleEnslaveAttempt} className="w-full bg-gradient-to-r from-purple-700 to-purple-900 hover:from-purple-600 hover:to-purple-800 font-bold p-2 rounded-lg text-sm transition-transform transform hover:scale-105 shadow-md">Nô Dịch ({honAnPhuCount})</button>}
-                        </div>
-                    )}
-                    {!isPlayerTurn && !isCombatOver && (
-                         <div className="text-center text-gray-400 animate-pulse">
-                            Đối phương đang hành động...
-                         </div>
-                    )}
-                     {isCombatOver && (
-                        <div className="text-center animate-fade-in">
-                            <h3 className={`text-3xl font-bold ${rewards ? 'text-yellow-400' : 'text-red-500'}`}>{rewards ? "Chiến Thắng!" : "Thất Bại"}</h3>
-                            {rewards && (
-                                <div className="mt-4 p-4 bg-black/30 rounded-lg max-h-48 overflow-y-auto text-left text-sm">
-                                    <h4 className="font-bold text-lg text-green-300 mb-2">Phần thưởng:</h4>
-                                    <p>EXP: <span className="font-semibold text-white">{rewards.exp.toLocaleString()}</span></p>
-                                    {rewards.items.map(item => <p key={item.id} className="text-green-400">Vật phẩm: {item.name}</p>)}
-                                    {Object.entries(rewards.materials).map(([mat, count]) => <p key={mat} className="text-cyan-400">Nguyên liệu: {count}x {mat}</p>)}
-                                    {Object.entries(rewards.consumables).map(([con, count]) => <p key={con} className="text-yellow-400">Vật phẩm: {count}x {con}</p>)}
-                                </div>
-                            )}
-                            <button onClick={handleContinueAfterCombat} className="mt-4 w-full bg-gray-600 hover:bg-gray-500 font-bold p-3 rounded-lg">
-                                Tiếp Tục
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-
-        {/* Skill List Modal */}
-        {showSkillList && playerInCombat && (
-            <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-30 animate-fade-in" onClick={() => setShowSkillList(false)}>
-                <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                    <h3 className="text-2xl font-bold text-blue-400 mb-4">Chọn Kỹ Năng</h3>
-                    <div className="space-y-3">
-                         {playerInCombat.skills.filter(s => s.type === SkillType.ACTIVE).map(skill => (
-                            <div key={skill.id} onClick={() => playerInCombat.currentMp >= (skill.mpCost || 0) && handleUseSkill(skill)}
-                                 className={`p-3 rounded-lg transition-colors ${playerInCombat.currentMp < (skill.mpCost || 0) ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-900/50 hover:bg-gray-700 cursor-pointer'}`}>
-                                <div className="flex justify-between font-bold">
-                                    <span>{skill.name}</span>
-                                    <span className="text-blue-400">{skill.mpCost || 0} MP</span>
-                                </div>
-                                <p className="text-sm text-gray-400 mt-1 italic">"{skill.description}"</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        )}
-    </div>
-  );
-};
-export default CombatScreen;
+                     <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8

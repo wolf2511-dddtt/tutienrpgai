@@ -1,4 +1,5 @@
 
+
 import {
     AttackResult,
     Character,
@@ -22,7 +23,6 @@ import {
     UpgradeMaterial,
     Retainer,
     PlayerClass,
-// Fix: Corrected import paths to be relative without extensions.
 } from '../types';
 import { BOSS_SKILLS as ALL_SKILLS } from '../data/bossSkills';
 import { RARITY_DATA, STAT_WEIGHTS, MONSTER_RANK_MODIFIERS, PLAYER_CLASS_BASE_STATS } from '../constants';
@@ -211,16 +211,20 @@ export const performAttack = (attacker: Combatant, defender: Combatant): AttackR
         return { damage, messages, appliedEffects: [], lifestealAmount, elementalEffect: null, isCritical: false };
     }
 
-    // 2. Damage Calculation
+    // 2. Damage Calculation (NEW FORMULA)
     const baseDamage = attacker.derivedStats.ATK;
     const defense = defender.derivedStats.DEF;
     const penetration = attacker.derivedStats.PENETRATION;
     
     const effectiveDefense = Math.max(0, defense * (1 - penetration / 100));
     
+    // New formula: Damage reduction is not linear. ATK damage is reduced by a percentage based on defense.
+    const damageReduction = effectiveDefense / (effectiveDefense + 500 + attacker.level * 15);
+    let rawDamage = baseDamage * (1 - damageReduction);
+
     // Guaranteed minimum damage based on attacker level to prevent stalemate
     const minDamage = 1 + Math.floor(attacker.level * 0.5); 
-    let rawDamage = Math.max(minDamage, baseDamage - effectiveDefense);
+    rawDamage = Math.max(minDamage, rawDamage);
 
     // 3. Critical Hit Check
     const critRoll = Math.random() * 100;
@@ -256,13 +260,23 @@ export const useSkill = (caster: Combatant, target: Combatant, skill: Skill): At
         switch (effect.type) {
             case SkillEffectType.DAMAGE: {
                 const baseDamageStat = skill.useMagicAttack ? caster.derivedStats.MATK : caster.derivedStats.ATK;
-                // Skill damage ignores a portion of defense by default due to magical nature/skill technique
-                const defense = target.derivedStats.DEF * 0.8; 
+                // Since there is no MDEF, skills also target DEF.
+                const defense = target.derivedStats.DEF;
                 
-                let rawDamage = Math.max(5, baseDamageStat - defense); // Skills have higher min damage
+                // Skills have innate penetration against defense.
+                const skillInnatePen = 0.2; // 20% penetration
+                const effectiveDefense = Math.max(0, defense * (1 - skillInnatePen));
+
+                // Use the same percentage-based reduction formula
+                const damageReduction = effectiveDefense / (effectiveDefense + 500 + caster.level * 15);
+                let rawDamage = baseDamageStat * (1 - damageReduction);
                 
                 // Multiplier
                 rawDamage *= (effect.powerMultiplier || 1);
+                
+                // Skills have higher min damage
+                const minDamage = 5 + caster.level; 
+                rawDamage = Math.max(minDamage, rawDamage);
                 
                 const damage = Math.round(rawDamage * (0.9 + Math.random() * 0.2));
                 totalDamage += damage;
@@ -452,36 +466,48 @@ export const calculateBonusStatsFromEquipment = (equipment: Equipment): Partial<
 };
 
 export const getActiveSetBonuses = (equipment: Equipment): { setName: string; pieceCount: number; totalPieces: number; bonuses: { bonus: SetBonus; active: boolean }[] }[] => {
-    const setPieces: { [setName: string]: number } = {};
-    const setsData: { [setName: string]: {bonuses: SetBonus[], totalPieces: number} } = {};
+    const setPiecesCount: { [setName: string]: number } = {};
+    const setsData: { [setName: string]: { bonuses: SetBonus[], totalPieces: number } } = {};
 
-    // Count pieces and collect set data
+    // 1. Count pieces of each set and gather set data
     for (const slot in equipment) {
         const item = equipment[slot as EquipmentSlot];
         if (item && item.setName && item.setBonuses) {
-            setPieces[item.setName] = (setPieces[item.setName] || 0) + 1;
+            setPiecesCount[item.setName] = (setPiecesCount[item.setName] || 0) + 1;
+            
+            // Store set data if not already present, ensuring no mutation
             if (!setsData[item.setName]) {
-                 setsData[item.setName] = { bonuses: item.setBonuses, totalPieces: item.setBonuses.sort((a,b)=>b.pieces-a.pieces)[0].pieces };
+                const sortedBonuses = [...item.setBonuses].sort((a, b) => b.pieces - a.pieces);
+                setsData[item.setName] = {
+                    bonuses: item.setBonuses, // Store original, unsorted bonus array
+                    totalPieces: sortedBonuses.length > 0 ? sortedBonuses[0].pieces : 0,
+                };
             }
         }
     }
 
-    const activeBonuses = [];
-    for (const setName in setPieces) {
-        const count = setPieces[setName];
+    const activeBonusesList = [];
+
+    // 2. Determine active bonuses for each set
+    for (const setName in setPiecesCount) {
+        const count = setPiecesCount[setName];
         const setData = setsData[setName];
-        activeBonuses.push({
-            setName,
-            pieceCount: count,
-            totalPieces: setData.totalPieces,
-            bonuses: setData.bonuses.map(bonus => ({
-                bonus,
-                active: count >= bonus.pieces,
-            })).sort((a, b) => a.bonus.pieces - b.bonus.pieces),
-        });
+        if (setData) {
+            activeBonusesList.push({
+                setName,
+                pieceCount: count,
+                totalPieces: setData.totalPieces,
+                bonuses: setData.bonuses
+                    .map(bonus => ({
+                        bonus,
+                        active: count >= bonus.pieces,
+                    }))
+                    .sort((a, b) => a.bonus.pieces - b.bonus.pieces),
+            });
+        }
     }
 
-    return activeBonuses;
+    return activeBonusesList;
 };
 
 export const createMonster = (templateName: string, levelOverride?: number): Character => {

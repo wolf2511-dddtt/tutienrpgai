@@ -1,4 +1,3 @@
-
 // Enums
 export enum GameScreen {
     MENU = 'MENU',
@@ -355,6 +354,11 @@ export interface Character {
     activeCultivationTechniqueId?: string;
     rank?: MonsterRank;
     imageUrl?: string;
+    // Boss specific properties
+    bossInfo?: {
+        phases: BossPhase[];
+    };
+    currentPhaseIndex?: number;
 }
 
 // Retainers are essentially simpler Characters managed by the player
@@ -569,14 +573,24 @@ export interface DungeonFloor {
     type: DungeonFloorType;
     description: string;
     isCompleted: boolean;
+    monsterName?: string;
+    monsterRank?: MonsterRank;
+    monsterLevel?: number;
+    rewards?: {
+        exp?: number;
+        items?: Item[];
+        materials?: { [key in UpgradeMaterial]?: number };
+    };
 }
 
 export interface Dungeon {
     id: number;
+    poiId: number;
     name: string;
     description: string;
     floors: DungeonFloor[];
     currentFloorIndex: number;
+    isCompleted: boolean;
 }
 
 export interface SectStoreItem {
@@ -635,8 +649,8 @@ export interface GameContextType {
     handleOpenImageLibrary: () => void;
     handleToggleFullscreen: () => void;
     isFullscreen: boolean;
-    handleCombatEnd: (playerWon: boolean, finalPlayer: Character, finalPet: Pet | null, expGained: number, itemsDropped: Item[], materialsDropped: { [key in UpgradeMaterial]?: number }, consumablesDropped: any) => void;
-    handleStartCombat: () => void;
+    handleCombatEnd: (playerWon: boolean, finalPlayer: Character, finalPet: Pet | null, expGained: number, itemsDropped: Item[], materialsDropped: { [key in UpgradeMaterial]?: number }, consumablesDropped: any, isInDungeon?: boolean) => void;
+    handleStartCombat: (monsterName?: string, levelOverride?: number) => void;
     handleOpenForge: () => void;
     handleDesignWorldComplete: (world: DesignedWorld, summary: WorldSummary, storyInfo?: StoryInfo) => void;
     handleOpenDialogue: (poiId: number) => void;

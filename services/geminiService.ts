@@ -1,6 +1,7 @@
 
+
 import { GoogleGenAI, GenerateContentResponse, Type, HarmCategory, HarmBlockThreshold, Modality } from "@google/genai";
-import { Character, DesignedWorld, Faction, QuestType, WorldSummary, Element, Poi } from "../types";
+import { Character, DesignedWorld, Faction, QuestType, WorldSummary, Element, Poi, Quest, QuestStatus } from "../types";
 import { loadApiKeys } from "./storageService";
 
 let ai: GoogleGenAI | null = null;
@@ -364,12 +365,11 @@ export const generateContextualActions = async (character: Character, terrain: s
 };
 
 export const generateStrategicAdvice = async (character: Character, terrain: string, recentLogs: string[]): Promise<string> => {
-    // ... (rest of the function is the same, but the model is updated)
     const hpPercent = (character.currentHp / character.derivedStats.HP) * 100;
     const mpPercent = (character.currentMp / character.derivedStats.MP) * 100;
     const expPercent = (character.exp / character.expToNextLevel) * 100;
     const unallocatedPoints = character.unallocatedStatPoints || 0;
-    // ... (rest of the logic)
+    const activeQuest = character.quests.find(q => q.status === QuestStatus.ACTIVE);
 
     const prompt = `
     Đóng vai một "Hộ Pháp Sư" (AI Advisor) trong game Tiên Hiệp.
@@ -380,7 +380,16 @@ export const generateStrategicAdvice = async (character: Character, terrain: str
     - HP: ${Math.round(hpPercent)}% | MP: ${Math.round(mpPercent)}%
     - EXP: ${Math.round(expPercent)}% ${expPercent >= 100 ? '(Đủ thăng cấp)' : ''}
     - Điểm tiềm năng chưa cộng: ${unallocatedPoints}
-    - ... (rest of the prompt)
+    - Nhiệm vụ hiện tại: ${activeQuest ? `${activeQuest.title} (${activeQuest.target.current}/${activeQuest.target.count} ${activeQuest.target.targetName})` : 'Không có'}
+    - Tình hình: Đang ở ${terrain}. Sự kiện gần đây: ${recentLogs.join('; ')}
+
+    QUY TẮC ƯU TIÊN:
+    1.  **SINH TỒN**: Nếu HP dưới 30%, phải cảnh báo và khuyên dùng vật phẩm hồi phục hoặc nghỉ ngơi.
+    2.  **ĐỘT PHÁ**: Nếu EXP đủ để thăng cấp hoặc có điểm tiềm năng chưa cộng, hãy nhắc nhở người chơi.
+    3.  **NHIỆM VỤ**: Nếu có nhiệm vụ, hãy gợi ý bước tiếp theo (tiếp tục săn quái, quay về trả nhiệm vụ...).
+    4.  **KHÁM PHÁ**: Nếu mọi thứ ổn, hãy gợi ý khám phá hoặc chuẩn bị cho thử thách tiếp theo.
+
+    CHỈ trả về một câu lời khuyên duy nhất, ngắn gọn.
     `;
     
     try {
@@ -402,11 +411,12 @@ export const generateStrategicAdvice = async (character: Character, terrain: str
 // --- Search Grounding ---
 
 export const searchCultivationKnowledge = async (query: string): Promise<{ text: string, sources?: {uri: string, title: string}[] }> => {
-    // ... (rest of the function is the same)
     const prompt = `
     Bạn là một cuốn bách khoa toàn thư về thế giới Tiên Hiệp, Thần Thoại Trung Hoa và Đạo Giáo.
     Người dùng đang hỏi: "${query}"
-    ... (rest of the prompt)
+    Hãy sử dụng Google Search để tìm và tổng hợp câu trả lời chính xác, sau đó trình bày lại theo văn phong của một học giả uyên bác.
+    - Luôn trích dẫn nguồn nếu có thể.
+    - Giữ câu trả lời trong khoảng 3-5 đoạn văn.
     `;
 
     try {
@@ -436,14 +446,30 @@ export const searchCultivationKnowledge = async (query: string): Promise<{ text:
 // --- Dynamic Quest Generation ---
 
 export const generateSectMission = async (faction: Faction, characterRank: string): Promise<any> => {
-    // ... (rest of the function is the same)
     const prompt = `
     Hãy thiết kế một nhiệm vụ tông môn cho một đệ tử cấp bậc "${characterRank}" thuộc môn phái "${faction.name}" (${faction.type}).
-    ... (rest of the prompt)
+    Nhiệm vụ phải phù hợp với bản chất của phe phái (ví dụ: Chính Phái thì diệt ma, Ma Đạo thì thu thập linh hồn).
+    
+    YÊU CẦU: Trả về JSON với các trường sau:
+    - title: Tên nhiệm vụ (VD: "Diệt Trừ Yêu Lang").
+    - description: Mô tả ngắn gọn (1-2 câu).
+    - targetName: Tên mục tiêu cần săn/thu thập (VD: "Dạ Lang").
+    - count: Số lượng cần thiết (từ 3 đến 10).
+    - expReward: Lượng kinh nghiệm thưởng.
+    - contributionReward: Điểm cống hiến thưởng.
     `;
 
     const schema = {
-        // ... schema definition
+        type: Type.OBJECT,
+        properties: {
+            title: { type: Type.STRING },
+            description: { type: Type.STRING },
+            targetName: { type: Type.STRING },
+            count: { type: Type.NUMBER },
+            expReward: { type: Type.NUMBER },
+            contributionReward: { type: Type.NUMBER },
+        },
+        required: ["title", "description", "targetName", "count", "expReward", "contributionReward"]
     };
 
     try {
@@ -466,7 +492,6 @@ export const generateSectMission = async (faction: Faction, characterRank: strin
 
 // --- Dialogue Generation ---
 
-// Fix: Added full function signature and implementation for generateDialogueResponse.
 export const generateDialogueResponse = async (
     npcName: string,
     npcRole: string,
@@ -474,7 +499,7 @@ export const generateDialogueResponse = async (
     npcAffinity: number,
     playerMessage: string,
     history: any[]
-): Promise<{ text: string, options: string[], newAffinity: number }> => {
+): Promise<{ text: string, options: string[], newAffinity: number, questOffer?: Omit<Quest, 'id' | 'status'> }> => {
     const prompt = `
     Bạn đang đóng vai NPC trong game tu tiên.
     
@@ -495,6 +520,7 @@ export const generateDialogueResponse = async (
     1.  **text**: Câu trả lời của NPC (1-2 câu).
     2.  **options**: 2-3 lựa chọn trả lời tiếp theo cho người chơi.
     3.  **affinityChange**: Một con số thể hiện sự thay đổi độ thân thiết (từ -10 đến +10).
+    4.  **questOffer (TÙY CHỌN)**: Nếu hợp lý (dựa trên vai trò và độ thân thiết > 20), hãy đề xuất một nhiệm vụ. Cấu trúc gồm: title, description, type (HUNT hoặc GATHER), target (targetName, count), rewards (exp).
 
     Trả về một đối tượng JSON duy nhất.
     `;
@@ -504,7 +530,30 @@ export const generateDialogueResponse = async (
         properties: {
             text: { type: Type.STRING, description: "Câu trả lời của NPC." },
             options: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Các lựa chọn cho người chơi." },
-            affinityChange: { type: Type.NUMBER, description: "Sự thay đổi độ thân thiết." }
+            affinityChange: { type: Type.NUMBER, description: "Sự thay đổi độ thân thiết." },
+            questOffer: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    type: { type: Type.STRING, enum: [QuestType.HUNT, QuestType.GATHER] },
+                    target: { 
+                        type: Type.OBJECT,
+                        properties: {
+                            targetName: { type: Type.STRING },
+                            count: { type: Type.NUMBER },
+                        },
+                        required: ["targetName", "count"]
+                    },
+                    rewards: {
+                        type: Type.OBJECT,
+                        properties: {
+                            exp: { type: Type.NUMBER }
+                        },
+                        required: ["exp"]
+                    },
+                }
+            }
         },
         required: ["text", "options", "affinityChange"]
     };
@@ -524,7 +573,8 @@ export const generateDialogueResponse = async (
         return {
             text: result.text || "...",
             options: result.options || ["Kết thúc"],
-            newAffinity: Math.max(-100, Math.min(100, npcAffinity + (result.affinityChange || 0)))
+            newAffinity: Math.max(-100, Math.min(100, npcAffinity + (result.affinityChange || 0))),
+            questOffer: result.questOffer
         };
     } catch (e: any) {
         console.error("Error generating dialogue:", e);
