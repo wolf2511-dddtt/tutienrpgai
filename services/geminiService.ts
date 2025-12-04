@@ -1,8 +1,9 @@
 
 
 import { GoogleGenAI, GenerateContentResponse, Type, HarmCategory, HarmBlockThreshold, Modality } from "@google/genai";
-import { Character, DesignedWorld, Faction, QuestType, WorldSummary, Element, Poi, Quest, QuestStatus } from "../types";
+import { Character, DesignedWorld, Faction, QuestType, WorldSummary, Element, Poi, Quest, QuestStatus, Dungeon, DungeonFloorType, MonsterRank, ItemType, Rarity, UpgradeMaterial, RandomEvent, EventOutcomeType } from "../types";
 import { loadApiKeys } from "./storageService";
+import { PREDEFINED_MONSTERS } from "../data/monsterData";
 
 let ai: GoogleGenAI | null = null;
 
@@ -295,8 +296,9 @@ export const generateCharacterDetails = async (
                 responseMimeType: "application/json",
                 responseSchema: schema,
                 temperature: 0.85,
+// FIX: Moved safetySettings into the config object.
+                safetySettings,
             },
-            safetySettings,
         });
         return JSON.parse(response.text || '{}');
     } catch (e: any) {
@@ -625,5 +627,157 @@ export const generateSpeech = async (text: string, voice: 'Kore' | 'Puck' | 'Cha
     } catch (e: any) {
         console.error("Error generating speech:", e);
         return undefined;
+    }
+};
+
+// --- Dungeon Generation ---
+export const generateDungeon = async (poi: Poi, characterLevel: number): Promise<Omit<Dungeon, 'id' | 'poiId'>> => {
+    const availableMonsters = PREDEFINED_MONSTERS.filter(m => m.level < characterLevel + 10).map(m => m.name);
+
+    const prompt = `
+    Bối cảnh: Game RPG tu tiên.
+    Địa điểm: "${poi.name}" (${poi.description}).
+    Cấp độ người chơi: ${characterLevel}.
+
+    Hãy tạo ra một Bí Cảnh (Dungeon) gồm 5 tầng với các yêu cầu sau:
+    1.  **name**: Một cái tên hấp dẫn cho Bí Cảnh, liên quan đến địa điểm.
+    2.  **description**: Một câu mô tả ngắn gọn, bí ẩn về Bí Cảnh.
+    3.  **floors**: Một mảng gồm 5 tầng, mỗi tầng là một object.
+        -   **type**: Loại tầng, theo thứ tự logic: COMBAT, COMBAT, TREASURE, ELITE_COMBAT, BOSS.
+        -   **description**: Mô tả ngắn gọn về tầng đó.
+        -   **monsterName (cho tầng COMBAT/ELITE/BOSS)**: Chọn một quái vật phù hợp từ danh sách: [${availableMonsters.join(', ')}].
+        -   **monsterRank (cho tầng ELITE/BOSS)**: Tầng ELITE_COMBAT phải là 'TinhAnh', tầng BOSS phải là 'ThủLĩnh'.
+        -   **rewards (cho tầng TREASURE)**: Cung cấp phần thưởng gồm 'exp' và một mảng 'materials'.
+
+    Trả về một đối tượng JSON duy nhất.
+    `;
+
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING },
+            description: { type: Type.STRING },
+            floors: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        type: { type: Type.STRING, enum: Object.values(DungeonFloorType) },
+                        description: { type: Type.STRING },
+                        monsterName: { type: Type.STRING },
+                        monsterRank: { type: Type.STRING, enum: Object.values(MonsterRank) },
+                        rewards: {
+                            type: Type.OBJECT,
+                            properties: {
+                                exp: { type: Type.NUMBER },
+                                materials: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        [UpgradeMaterial.TINH_THACH_HA_PHAM]: { type: Type.NUMBER },
+                                        [UpgradeMaterial.TINH_THACH_TRUNG_PHAM]: { type: Type.NUMBER },
+                                        [UpgradeMaterial.TINH_THACH_CAO_PHAM]: { type: Type.NUMBER },
+                                        [UpgradeMaterial.LINH_HON_THACH]: { type: Type.NUMBER },
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    required: ["type", "description"]
+                }
+            }
+        },
+        required: ["name", "description", "floors"]
+    };
+
+    try {
+        const client = getAiClient();
+        const response = await client.models.generateContent({
+            model: "gemini-flash-latest",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                temperature: 0.9,
+            },
+        });
+        const result = JSON.parse(response.text || '{}');
+        // Post-processing to ensure floors are valid
+        result.floors = result.floors.map((floor: any) => ({ ...floor, isCompleted: false }));
+        return result;
+    } catch (e: any) {
+        console.error("Error generating dungeon:", e);
+        throw new Error("Không thể tạo Bí Cảnh lúc này.");
+    }
+};
+
+// --- NEW: Random Event Generation ---
+export const generateRandomEvent = async (character: Character, terrain: string): Promise<RandomEvent> => {
+    const prompt = `
+    Bối cảnh: Game RPG tu tiên.
+    Nhân vật: ${character.name}, Cấp ${character.level}, đang ở khu vực ${terrain}.
+    
+    Hãy tạo ra một sự kiện ngẫu nhiên bất ngờ xảy ra với người chơi.
+    Sự kiện phải có một mô tả ngắn, và 2-3 lựa chọn, mỗi lựa chọn dẫn đến một kết quả khác nhau.
+    Các kết quả có thể là:
+    - 'ITEM': Nhận vật phẩm (itemName, itemRarity, itemCount).
+    - 'STAT_CHANGE': Thay đổi chỉ số (stat: 'currentHp' hoặc 'currentMp', amount: có thể âm hoặc dương, isPercent: true/false).
+    - 'COMBAT': Bắt đầu một trận chiến (monsterName).
+    - 'REPUTATION': Thay đổi danh vọng (factionId - không dùng lúc này, bỏ qua).
+    - 'NARRATIVE': Chỉ là một đoạn văn tường thuật kết quả.
+    
+    YÊU CẦU: Trả về một đối tượng JSON duy nhất theo cấu trúc đã định.
+    `;
+
+    const outcomeSchema = {
+        type: Type.OBJECT,
+        properties: {
+            type: { type: Type.STRING, enum: ['ITEM', 'STAT_CHANGE', 'COMBAT', 'REPUTATION', 'NARRATIVE'] },
+            description: { type: Type.STRING },
+            itemName: { type: Type.STRING },
+            itemRarity: { type: Type.STRING, enum: Object.values(Rarity) },
+            itemCount: { type: Type.NUMBER },
+            stat: { type: Type.STRING, enum: ['currentHp', 'currentMp'] },
+            amount: { type: Type.NUMBER },
+            isPercent: { type: Type.BOOLEAN },
+            monsterName: { type: Type.STRING },
+        },
+        required: ["type", "description"]
+    };
+
+    const choiceSchema = {
+        type: Type.OBJECT,
+        properties: {
+            text: { type: Type.STRING },
+            outcomes: { type: Type.ARRAY, items: outcomeSchema }
+        },
+        required: ["text", "outcomes"]
+    };
+
+    const eventSchema = {
+        type: Type.OBJECT,
+        properties: {
+            title: { type: Type.STRING },
+            description: { type: Type.STRING },
+            choices: { type: Type.ARRAY, items: choiceSchema }
+        },
+        required: ["title", "description", "choices"]
+    };
+
+    try {
+        const client = getAiClient();
+        const response = await client.models.generateContent({
+            model: "gemini-3-pro-preview",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: eventSchema,
+                temperature: 1.0,
+            },
+        });
+        const result = JSON.parse(response.text || '{}');
+        return { ...result, id: crypto.randomUUID() };
+    } catch (e: any) {
+        console.error("Error generating random event:", e);
+        throw new Error("Không thể tạo sự kiện ngẫu nhiên.");
     }
 };

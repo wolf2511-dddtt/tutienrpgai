@@ -1,10 +1,9 @@
-
 import React, { useState, useMemo } from 'react';
-import { useGame } from '../contexts/GameContext.tsx';
-import { ItemType, UpgradeMaterial, Item, GameScreen } from '../types.ts';
-import ItemCard from './ItemCard.tsx';
-import { UPGRADE_MATERIALS_DATA, RARITY_DATA } from '../constants.ts';
-import { getUpgradeCost, processItemUpgrade } from '../services/gameLogic.ts';
+import { useGame } from '../contexts/GameContext';
+import { ItemType, UpgradeMaterial, Item, GameScreen } from '../types';
+import ItemCard from './ItemCard';
+import { UPGRADE_MATERIALS_DATA, RARITY_DATA } from '../constants';
+import { getUpgradeCost, processItemUpgrade } from '../services/gameLogic';
 
 // Helper component for stat comparison
 const StatComparison: React.FC<{ label: string; current: number; next: number }> = ({ label, current, next }) => {

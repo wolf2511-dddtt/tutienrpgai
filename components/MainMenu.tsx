@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { GameScreen } from '../types';
 import { useGame } from '../contexts/GameContext';
@@ -6,7 +5,7 @@ import { MENU_BACKGROUND_IMAGES } from '../data/menuBackgrounds';
 import ChangelogModal from './ChangelogModal';
 
 const MainMenu: React.FC = () => {
-    const { handleOpenImageLibrary, isFullscreen, handleToggleFullscreen, handleOpenMenu, saveSlots, handleStartNewGame } = useGame();
+    const { handleOpenImageLibrary, isFullscreen, handleToggleFullscreen, handleOpenMenu, saveSlots, handleStartNewGame, handleQuickPlay, handleDevQuickStart, isQuickPlayLoading } = useGame();
     const activeSaveCount = saveSlots.filter(s => s.characterName).length;
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [version, setVersion] = useState('');
@@ -76,6 +75,21 @@ const MainMenu: React.FC = () => {
                          className="w-full bg-gray-800/80 hover:bg-gray-700/80 text-white font-semibold py-3 px-6 rounded-xl border border-gray-600 hover:border-gray-400 transition-all backdrop-blur-sm"
                     >
                         Tiếp tục ({activeSaveCount})
+                    </button>
+                    <button
+                        onClick={handleQuickPlay}
+                        disabled={isQuickPlayLoading}
+                        className="w-full bg-cyan-800/80 hover:bg-cyan-700/80 text-white font-semibold py-3 px-6 rounded-xl border border-cyan-600 hover:border-cyan-400 transition-all backdrop-blur-sm disabled:opacity-50"
+                    >
+                        {isQuickPlayLoading ? 'Đang tải...' : 'Chơi Nhanh'}
+                    </button>
+                    {/* Dev button, can be hidden in production */}
+                    <button
+                        onClick={handleDevQuickStart}
+                        disabled={isQuickPlayLoading}
+                        className="w-full bg-red-900/50 hover:bg-red-800/50 text-red-300 text-sm font-semibold py-2 px-6 rounded-xl border border-red-700 hover:border-red-500 transition-all backdrop-blur-sm disabled:opacity-50"
+                    >
+                       Dev Quick Start (Lv.50)
                     </button>
                 </div>
             </div>

@@ -13,11 +13,13 @@ import DialogueModal from './components/DialogueModal';
 import DungeonScreen from './components/DungeonScreen';
 import WorldDesigner from './components/WorldDesigner';
 import LevelUpModal from './components/LevelUpModal';
+import EventModal from './components/EventModal';
 
 const AppContent: React.FC = () => {
   const { 
     screen, character, enemy, appSettings,
-    handleOpenMenu, handleBackToMenu
+    handleOpenMenu, handleBackToMenu,
+    activeEvent
   } = useGame();
 
   // Effect to refresh save slots when navigating to relevant screens
@@ -77,6 +79,7 @@ const AppContent: React.FC = () => {
     <div className="bg-gray-900">
       {renderScreen()}
       {levelUpInfo && <LevelUpModal />}
+      {activeEvent && <EventModal />}
     </div>
   );
 };

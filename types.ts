@@ -613,6 +613,36 @@ export interface MetNpcInfo {
     imageUrl?: string;
 }
 
+// --- New Random Event System ---
+export type EventOutcomeType = 'ITEM' | 'STAT_CHANGE' | 'COMBAT' | 'REPUTATION' | 'QUEST' | 'NARRATIVE';
+
+export interface EventOutcome {
+    type: EventOutcomeType;
+    description: string; // e.g., "Bạn nhận được 1 Linh Thảo."
+    itemName?: string;
+    itemRarity?: Rarity;
+    itemCount?: number;
+    stat?: keyof DerivedStats;
+    amount?: number;
+    isPercent?: boolean;
+    monsterName?: string;
+    factionId?: number;
+    reputationChange?: number;
+}
+
+export interface EventChoice {
+    text: string;
+    outcomes: EventOutcome[];
+}
+
+export interface RandomEvent {
+    id: string;
+    title: string;
+    description: string;
+    choices: EventChoice[];
+}
+
+
 // Define the shape of the context
 export interface GameContextType {
     screen: GameScreen;
@@ -628,9 +658,10 @@ export interface GameContextType {
     activePoiIdForDialogue: number | null;
     transientDialogue: any;
     contextualActions: string[];
-    isGeneratingActions: boolean;
+    isActionLocked: boolean;
     levelUpInfo: LevelUpInfo | null;
     oneTimeMessages: ExplorationEventLog[];
+    activeEvent: RandomEvent | null;
 
     handleStartNewGame: () => void;
     handleQuickPlay: () => void;
@@ -656,6 +687,7 @@ export interface GameContextType {
     handleToggleFullscreen: () => void;
     isFullscreen: boolean;
     handleCombatEnd: (playerWon: boolean, finalPlayer: Character, finalPet: Pet | null, expGained: number, itemsDropped: Item[], materialsDropped: { [key in UpgradeMaterial]?: number }, consumablesDropped: any, isInDungeon?: boolean) => void;
+    handleContinueAfterCombat: () => void;
     handleStartCombat: (monsterName?: string, levelOverride?: number) => void;
     handleOpenForge: () => void;
     handleDesignWorldComplete: (world: DesignedWorld, summary: WorldSummary, storyInfo?: StoryInfo) => void;
@@ -691,6 +723,8 @@ export interface GameContextType {
     handleUnequipItem: (slot: EquipmentSlot) => void;
     handleLearnItem: (item: Item) => void;
     handleGetAIAdvice: () => Promise<void>;
+    handlePlayerAction: (action: string) => Promise<void>;
+    handleResolveEventChoice: (choice: EventChoice) => void;
     
     // Retainer Methods
     handleRecruitRetainer: () => Promise<void>;

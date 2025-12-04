@@ -1,12 +1,8 @@
-
 import React, { useState } from 'react';
-// Fix: Corrected import path to be relative
-import { useGame } from '../contexts/GameContext.tsx';
-// Fix: Corrected import path to be relative
-import { Faction, FactionType, Item, ItemType, QuestStatus, QuestType, SectStoreItem, LogType, Rarity } from '../types.ts';
-import ItemCard from './ItemCard.tsx';
-// Fix: Corrected import path to be relative
-import { RARITY_DATA } from '../constants.ts';
+import { useGame } from '../contexts/GameContext';
+import { Faction, FactionType, Item, ItemType, QuestStatus, QuestType, SectStoreItem, LogType, Rarity } from '../types';
+import ItemCard from './ItemCard';
+import { RARITY_DATA } from '../constants';
 
 interface ReputationDetails {
     label: string;

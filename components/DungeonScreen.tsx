@@ -1,10 +1,8 @@
 
 
 import React, { useState } from 'react';
-// Fix: Corrected import path to be relative
-import { useGame } from '../contexts/GameContext.tsx';
-// Fix: Corrected import path to be relative
-import { DungeonFloorType } from '../types.ts';
+import { useGame } from '../contexts/GameContext';
+import { DungeonFloorType } from '../types';
 
 const DungeonScreen: React.FC = () => {
     const { character, worldState, handleProceedInDungeon, handleExitDungeon } = useGame();

@@ -9,14 +9,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_DATA: ChangelogEntry[] = [
   {
-    version: "3.0.0",
+    version: "3.0.3",
     date: new Date().toISOString().split('T')[0],
     changes: [
+      { type: 'new', description: 'Hoàn thiện Hệ thống Sự kiện Ngẫu nhiên (Random Events) do AI tạo ra, mang lại sự bất ngờ cho mỗi cuộc phiêu lưu.' },
+      { type: 'fix', description: 'Tái cấu trúc luồng xử lý hành động, khắc phục triệt để lỗi "màn hình đen" khi sự kiện được kích hoạt.' },
+      { type: 'update', description: 'Tập trung hóa logic xử lý hành động vào một nơi duy nhất để tăng tính ổn định và dễ dàng bảo trì.' },
+    ],
+  },
+  {
+    version: "3.0.2",
+    date: new Date().toISOString().split('T')[0],
+    changes: [
+      { type: 'new', description: 'Thêm tính năng "Chơi Nhanh" (Quick Play) từ Menu chính để vào game ngay lập tức với thiết lập mặc định.' },
+      { type: 'new', description: 'Thêm tùy chọn "Dev Quick Start" để tạo nhanh nhân vật cấp cao phục vụ cho việc kiểm thử.' },
+      { type: 'fix', description: 'Sửa lỗi logic sao chép dữ liệu khi sử dụng tính năng "Nô Dịch" (Enslave).' },
+      { type: 'fix', description: 'Dọn dẹp mã nguồn, loại bỏ các tệp component không sử dụng và sửa các đường dẫn import không hợp lệ.' },
+    ],
+  },
+  {
+    version: "3.0.1",
+    date: "2024-09-14",
+    changes: [
       { type: 'new', description: 'Hoàn thiện Hệ thống Bí Cảnh (Dungeons): AI giờ đây có thể tự động tạo ra các bí cảnh độc đáo khi người chơi khám phá.' },
+      { type: 'update', description: 'Tái cấu trúc luồng xử lý sau chiến đấu để tích hợp với hệ thống Bí Cảnh, đảm bảo tiến trình liền mạch.' },
+      { type: 'fix', description: 'Cài đặt các hàm xử lý gameplay còn thiếu để tăng tính ổn định và hoàn thiện vòng lặp game.' },
+      { type: 'fix', description: 'Khắc phục lỗi build nghiêm trọng do thiếu tệp hằng số (constants.ts).' },
+    ],
+  },
+  {
+    version: "3.0.0",
+    date: "2024-09-13",
+    changes: [
       { type: 'new', description: 'Kích hoạt Hệ thống Nhiệm vụ Động: NPC có thể tự đề xuất nhiệm vụ cho người chơi trong quá trình hội thoại.' },
       { type: 'fix', description: 'Sửa lỗi logic nghiêm trọng trong việc tính toán bonus từ bộ trang bị, đảm bảo chỉ số được cộng chính xác.' },
       { type: 'fix', description: 'Khắc phục lỗi cú pháp "Missing initializer" khiến ứng dụng không thể khởi chạy.' },
-      { type: 'update', description: 'Cài đặt và hoàn thiện các chức năng gameplay cốt lõi còn thiếu (chiến đấu, thăng cấp, hội thoại, v.v.).' },
       { type: 'balance', description: 'Nâng cấp các model AI chính để cải thiện hiệu năng và tránh lỗi hạn ngạch.' },
     ],
   },

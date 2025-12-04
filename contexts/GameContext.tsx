@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import {
     GameScreen,
@@ -33,12 +32,16 @@ import {
     ItemType,
     GameContextType,
     DungeonFloorType,
-    DialogueState
+    DialogueState,
+    Dungeon,
+    Element,
+    FactionType,
+    Rarity
 } from '../types';
 import { loadSettings, saveSettings, loadAllSaveSlots, saveGame, loadGame, deleteSave } from '../services/storageService';
 import { DEFAULT_SETTINGS, PLAYER_CLASS_BASE_STATS, UPGRADE_CONSUMABLES_DATA, UPGRADE_MATERIALS_DATA, PET_EVOLUTION_COST, PET_EVOLUTION_LEVEL, DIFFICULTY_MODIFIERS } from '../constants';
-import { calculateDerivedStats, getUpgradeCost, processItemUpgrade, calculatePetDerivedStats, getTerrainFromPosition, generateRandomRetainer, calculateRetainerStats, generateRandomMonster, calculateLevelUp, createMonster } from '../services/gameLogic';
-import { generateCharacterDetails, generateSectMission, generateContextualActions, generateStrategicAdvice, generateDialogueResponse } from '../services/geminiService';
+import { calculateDerivedStats, getUpgradeCost, processItemUpgrade, calculatePetDerivedStats, getTerrainFromPosition, generateRandomRetainer, calculateRetainerStats, generateRandomMonster, calculateLevelUp, createMonster, generateItem } from '../services/gameLogic';
+import { generateCharacterDetails, generateSectMission, generateContextualActions, generateStrategicAdvice, generateDialogueResponse, generateDungeon } from '../services/geminiService';
 import { VAN_LINH_GIOI_POIS } from '../data/worldData';
 import { PREDEFINED_MONSTERS } from '../data/monsterData';
 
@@ -66,15 +69,30 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [imageLibrary, setImageLibrary] = useState<any[]>([]);
     
-    // Most handlers are defined as stubs for now as they require significant logic.
-    const unimplemented = useCallback((name: string) => () => { console.warn(`${name} is not implemented`); }, []);
-    const unimplementedAsync = useCallback((name: string) => async () => { console.warn(`${name} is not implemented`); }, []);
-    
-    // FIX: Implement missing handlers to satisfy GameContextType
-    const handleQuickPlay = unimplemented('handleQuickPlay');
-    const handleDevQuickStart = unimplemented('handleDevQuickStart');
+    // --- Implemented Handlers ---
+    const handleSettingsChange = (newSettings: AppSettings) => {
+        setAppSettings(newSettings);
+        saveSettings(newSettings);
+    };
 
+    const refreshSaveSlots = () => setSaveSlots(loadAllSaveSlots());
+    
+    const handleBackToMenu = () => {
+        setScreen(GameScreen.MENU);
+        setCharacter(null);
+        setEnemy(null);
+        setDesignedWorldPrompt(null);
+    };
+
+    const handleOpenMenu = (menu: GameScreen) => setScreen(menu);
+    const handleStartNewGame = () => setScreen(GameScreen.WORLD_DESIGNER);
     const handleOpenForge = () => setScreen(GameScreen.FORGE);
+    
+    const handleCloseDialogue = () => {
+        setActivePoiIdForDialogue(null);
+        setTransientDialogue(null);
+        setScreen(GameScreen.WORLD);
+    };
 
     const handleOpenDialogue = (poiId: number) => {
         const poiIndex = worldState.pois.findIndex(p => p.id === poiId);
@@ -92,6 +110,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 factionId: poi.factionId,
                 factionName: faction?.name,
             };
+            if (poi.type === 'Tàn Tích') {
+                newDialogueState.options?.push("Tiến vào Bí Cảnh");
+            }
+
             const updatedPois = [...worldState.pois];
             updatedPois[poiIndex] = { ...poi, dialogue: newDialogueState };
             setWorldState(prev => ({...prev, pois: updatedPois}));
@@ -101,30 +123,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setScreen(GameScreen.DIALOGUE);
     };
 
-    const handleCloseDialogue = () => {
-        setActivePoiIdForDialogue(null);
-        setTransientDialogue(null);
-        setScreen(GameScreen.WORLD);
-    };
-
-
-    const handleSettingsChange = (newSettings: AppSettings) => {
-        setAppSettings(newSettings);
-        saveSettings(newSettings);
-    };
-
-    const refreshSaveSlots = () => setSaveSlots(loadAllSaveSlots());
-    
-    const handleBackToMenu = () => {
-        setScreen(GameScreen.MENU);
-        setCharacter(null);
-        setEnemy(null);
-        setDesignedWorldPrompt(null);
-    };
-
-    const handleOpenMenu = (menu: GameScreen) => setScreen(menu);
-    const handleStartNewGame = () => setScreen(GameScreen.WORLD_DESIGNER);
-    
     const handleDesignWorldComplete = (world: DesignedWorld, summary: WorldSummary, storyInfo?: StoryInfo) => {
         setDesignedWorld(world);
         setDesignedWorldPrompt(summary);
@@ -489,19 +487,13 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         newConsumables[UpgradeConsumable.HON_AN_PHU] = (newConsumables[UpgradeConsumable.HON_AN_PHU] || 0) - 1;
 
         if (roll < chance) {
+            // Fix: Correctly create the Servant object by excluding properties not in the Servant type.
+            const { pets, retainers, servants, ...baseEnemy } = enemy;
             const newServant: Servant = {
-                ...enemy,
+                ...baseEnemy,
                 id: crypto.randomUUID(),
                 task: ServantTaskEnum.IDLE,
                 characterClass: enemy.playerClass,
-                derivedStats: enemy.derivedStats, // Keep stats
-                // Ensure required arrays exist
-                metNpcs: [],
-                quests: [],
-                reputation: {},
-                materials: {},
-                consumables: {},
-                learnedCultivationTechniques: []
             };
              
              setCharacter({ ...character, servants: [...character.servants, newServant], consumables: newConsumables });
@@ -817,14 +809,24 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         setCharacter(newCharacter);
         setEnemy(null);
-        if (!isInDungeon || (isInDungeon && !playerWon)) {
-             setScreen(GameScreen.WORLD);
-        }
+        // Let handleContinueAfterCombat decide where to go
+        // if (!isInDungeon || (isInDungeon && !playerWon)) {
+        //      setScreen(GameScreen.WORLD);
+        // }
         
         if (levelUpData) {
             setLevelUpInfo(levelUpData);
         }
     };
+    
+    const handleContinueAfterCombat = () => {
+        if (character?.currentDungeonId) {
+            handleProceedInDungeon();
+        } else {
+            setScreen(GameScreen.WORLD);
+        }
+    };
+
 
     const handleActivateCultivationTechnique = (techniqueId: string) => {
         if (!character) return;
@@ -839,9 +841,36 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         const poi = worldState.pois[poiIndex];
         if (!poi.dialogue) return;
+        
+        // Handle special actions
+        if (message === "Tiến vào Bí Cảnh") {
+            // Check if dungeon already exists
+            let dungeon = worldState.dungeons.find(d => d.poiId === poi.id);
+            if (!dungeon) {
+                try {
+                    const dungeonData = await generateDungeon(poi, character.level);
+                    const newDungeon: Dungeon = {
+                        ...dungeonData,
+                        id: worldState.dungeons.length,
+                        poiId: poi.id,
+                        currentFloorIndex: 0,
+                        isCompleted: false,
+                    };
+                    setWorldState(prev => ({...prev, dungeons: [...prev.dungeons, newDungeon]}));
+                    dungeon = newDungeon;
+                } catch (e: any) {
+                    setOneTimeMessages([{id: crypto.randomUUID(), text: `Không thể tiến vào: ${e.message}`, type: LogType.ERROR}]);
+                    return;
+                }
+            }
+            setCharacter(prev => prev ? ({ ...prev, currentDungeonId: dungeon!.id }) : null);
+            setScreen(GameScreen.DUNGEON);
+            return;
+        }
+
 
         const newHistory = [...poi.dialogue.history, { speaker: 'player', text: message } as any];
-        const updatedPoi = { ...poi, dialogue: { ...poi.dialogue, history: newHistory } };
+        const updatedPoi = { ...poi, dialogue: { ...poi.dialogue, history: newHistory, options: [] } }; // Clear options while waiting
         const updatedPois = [...worldState.pois];
         updatedPois[poiIndex] = updatedPoi;
         setWorldState({ ...worldState, pois: updatedPois });
@@ -863,7 +892,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     ...poi.dialogue, 
                     history: finalHistory,
                     options: response.options,
-                    affinity: response.newAffinity
+                    affinity: response.newAffinity,
+                    questOffer: response.questOffer
                 } 
             };
             const finalPois = [...worldState.pois];
@@ -875,9 +905,78 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const handleContinueTransientDialogue = async (message: string) => {};
+    const handleContinueTransientDialogue = async (message: string) => {
+        // Basic implementation for things like turning in quests
+        if (!transientDialogue || !character) return;
 
-    const handleProceedInDungeon = async () => {};
+        if (transientDialogue.questTurnIn) {
+            const quest = character.quests.find(q => q.id === transientDialogue.questTurnIn.id);
+            if (!quest) return;
+            
+            // Apply rewards
+            const newCharacter = {...character};
+            newCharacter.exp += quest.rewards.exp;
+            
+            setTransientDialogue(null);
+            handleCloseDialogue();
+            setOneTimeMessages([{id: crypto.randomUUID(), text: `Hoàn thành ${quest.title}! Nhận được ${quest.rewards.exp} EXP.`, type: LogType.QUEST}]);
+            return;
+        }
+
+        handleCloseDialogue();
+    };
+
+    const handleProceedInDungeon = async () => {
+        if (!character?.currentDungeonId) return;
+        
+        const dungeonIndex = worldState.dungeons.findIndex(d => d.id === character.currentDungeonId);
+        if (dungeonIndex === -1) return;
+
+        let dungeon = { ...worldState.dungeons[dungeonIndex] };
+        
+        // Mark current floor as completed
+        dungeon.floors[dungeon.currentFloorIndex].isCompleted = true;
+        
+        // Check if it was the last floor
+        if (dungeon.currentFloorIndex >= dungeon.floors.length - 1) {
+            dungeon.isCompleted = true;
+            // TODO: Give final reward
+            setOneTimeMessages([{id: crypto.randomUUID(), text: `Chúc mừng! Bạn đã hoàn thành ${dungeon.name}!`, type: LogType.SYSTEM}]);
+            handleExitDungeon(true); // Force exit
+            return;
+        }
+
+        // Proceed to next floor
+        dungeon.currentFloorIndex += 1;
+        const newFloor = dungeon.floors[dungeon.currentFloorIndex];
+        
+        let newCharacterState = { ...character };
+
+        switch (newFloor.type) {
+            case DungeonFloorType.COMBAT:
+            case DungeonFloorType.ELITE_COMBAT:
+            case DungeonFloorType.BOSS:
+                if (newFloor.monsterName) {
+                    handleStartCombat(newFloor.monsterName, newFloor.monsterLevel);
+                }
+                break;
+            case DungeonFloorType.TREASURE:
+                if (newFloor.rewards) {
+                    newCharacterState.exp += (newFloor.rewards.exp || 0);
+                    // TODO: Add items and materials
+                    setOneTimeMessages([{id: crypto.randomUUID(), text: `Bạn tìm thấy một rương báu! Nhận được ${newFloor.rewards.exp || 0} EXP.`, type: LogType.LOOT}]);
+                }
+                break;
+            case DungeonFloorType.EMPTY:
+                setOneTimeMessages([{id: crypto.randomUUID(), text: newFloor.description, type: LogType.NARRATIVE}]);
+                break;
+        }
+
+        const newDungeons = [...worldState.dungeons];
+        newDungeons[dungeonIndex] = dungeon;
+        setWorldState(prev => ({...prev, dungeons: newDungeons}));
+        setCharacter(newCharacterState);
+    };
     
     const handleExitDungeon = (force: boolean = false) => {
         if (!force && !window.confirm("Bạn có muốn rời khỏi Bí Cảnh không? Mọi tiến trình sẽ được giữ lại.")) return;
@@ -914,6 +1013,103 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCharacter(prev => prev ? ({ ...prev, quests: [...prev.quests, joinQuest] }) : null);
         setOneTimeMessages([{id: crypto.randomUUID(), text: `Bạn đã nhận nhiệm vụ khảo hạch để gia nhập ${faction.name}.`, type: LogType.QUEST}]);
     };
+    
+    // --- New Implementations ---
+    const handleQuickPlay = useCallback(async () => {
+        setIsQuickPlayLoading(true);
+    
+        const defaultWorld: DesignedWorld = {
+            worldName: "Vạn Linh Giới",
+            worldLore: "Một thế giới tu tiên mặc định, đầy rẫy cơ duyên và nguy hiểm.",
+            mainConflict: "Cuộc chiến giữa Chính Phái và Ma Đạo để tranh đoạt di sản của một nền văn minh cổ đại.",
+            majorFactions: [
+                { name: "Thiên Kiếm Tông", description: "Tông môn kiếm tu đứng đầu chính đạo.", type: FactionType.CHINH_PHAI, isJoinable: true },
+                { name: "Huyết Yêu Tông", description: "Một nhánh ma tu tàn độc.", type: FactionType.MA_DAO, isJoinable: true },
+            ],
+            uniqueRaces: [{ name: "Nhân Tộc", description: "Chủng tộc đông đảo nhất." }],
+            magicSystem: "Hệ thống tu luyện dựa trên việc hấp thụ linh khí, đột phá cảnh giới.",
+        };
+    
+        let factionIdCounter = 0;
+        const factions: Faction[] = defaultWorld.majorFactions.map(f => ({ ...f, id: factionIdCounter++, store: [] }));
+        const pois: Poi[] = VAN_LINH_GIOI_POIS.map((poiTemplate, index) => {
+            const faction = factions.find(f => f.name === poiTemplate.factionName);
+            return { ...poiTemplate, id: index, isLoading: false, factionId: faction ? faction.id : undefined, dialogue: undefined };
+        });
+        const newWorldState: WorldState = { factions, pois, dungeons: [], bestiary: PREDEFINED_MONSTERS.map(m => ({ ...m, discovered: false })) };
+    
+        const partialCharacter: Omit<Character, 'derivedStats' | 'currentHp' | 'currentMp'> = {
+            id: crypto.randomUUID(), name: 'Tán Tu Vô Danh', playerClass: PlayerClass.KIEM_TU, level: 1, exp: 0, expToNextLevel: 100,
+            realm: { name: 'Luyện Khí Kỳ', level: 1 }, baseStats: PLAYER_CLASS_BASE_STATS[PlayerClass.KIEM_TU], equipment: {},
+            skills: [], backstory: 'Một người tu luyện vô danh bắt đầu hành trình của mình.', inventory: [], activeEffects: [],
+            position: { x: 2048, y: 2048 }, isHumanoid: true, isBoss: false, pets: [], retainers: [], servants: [],
+            metNpcs: [], quests: [], reputation: {}, materials: {}, consumables: {}, sectContributionPoints: 0,
+            learnedCultivationTechniques: [],
+        };
+        const derivedStats = calculateDerivedStats(partialCharacter);
+        const newCharacter: Character = {
+            ...partialCharacter, derivedStats, currentHp: derivedStats.HP, currentMp: derivedStats.MP, unallocatedStatPoints: 5,
+            linhCan: { elements: [Element.KIM], quality: 'Phàm phẩm', description: 'Linh căn phổ biến.' }
+        };
+    
+        setCharacter(newCharacter);
+        setWorldState(newWorldState);
+        setScreen(GameScreen.WORLD);
+        setIsQuickPlayLoading(false);
+    }, []);
+    
+    const handleDevQuickStart = useCallback(async () => {
+        setIsQuickPlayLoading(true);
+        // Uses the same world logic as Quick Play
+        const defaultWorld: DesignedWorld = {
+            worldName: "Vạn Linh Giới", worldLore: "Thế giới dành cho Dev.", mainConflict: "Debug.", majorFactions: [], uniqueRaces: [], magicSystem: "Console.log"
+        };
+        let factionIdCounter = 0;
+        const factions: Faction[] = defaultWorld.majorFactions.map(f => ({ ...f, id: factionIdCounter++, store: [] }));
+        const pois: Poi[] = VAN_LINH_GIOI_POIS.map((poiTemplate, index) => {
+            const faction = factions.find(f => f.name === poiTemplate.factionName);
+            return { ...poiTemplate, id: index, isLoading: false, factionId: faction ? faction.id : undefined, dialogue: undefined };
+        });
+        const newWorldState: WorldState = { factions, pois, dungeons: [], bestiary: PREDEFINED_MONSTERS.map(m => ({ ...m, discovered: true })) };
+    
+        const partialCharacter: Omit<Character, 'derivedStats' | 'currentHp' | 'currentMp'> = {
+            id: crypto.randomUUID(), name: 'Dev Tester', playerClass: PlayerClass.KIEM_TU, level: 50, exp: 0, expToNextLevel: 100000,
+            realm: { name: 'Nguyên Anh Kỳ', level: 5 }, 
+            baseStats: { STR: 150, AGI: 120, INT: 100, SPI: 100, CON: 180, DEX: 130 }, 
+            equipment: {}, skills: [], backstory: 'Developer tối cao.', inventory: [], activeEffects: [],
+            position: { x: 2048, y: 2048 }, isHumanoid: true, isBoss: false, pets: [], retainers: [], servants: [],
+            metNpcs: [], quests: [], reputation: {}, 
+            materials: {
+                [UpgradeMaterial.TINH_THACH_HA_PHAM]: 999,
+                [UpgradeMaterial.TINH_THACH_TRUNG_PHAM]: 999,
+                [UpgradeMaterial.TINH_THACH_CAO_PHAM]: 999,
+                [UpgradeMaterial.LINH_HON_THACH]: 99,
+            },
+            consumables: {
+                [UpgradeConsumable.LINH_THU_PHU]: 50,
+                [UpgradeConsumable.LINH_THU_THUC]: 100,
+                [UpgradeConsumable.HON_AN_PHU]: 20,
+            }, 
+            sectContributionPoints: 10000,
+            learnedCultivationTechniques: [],
+        };
+
+        const epicItem = await generateItem(50, partialCharacter as Character, Rarity.EPIC);
+        const legendaryItem = await generateItem(50, partialCharacter as Character, Rarity.LEGENDARY);
+        partialCharacter.inventory.push(epicItem, legendaryItem);
+        
+        const derivedStats = calculateDerivedStats(partialCharacter);
+        const newCharacter: Character = {
+            ...partialCharacter, derivedStats, currentHp: derivedStats.HP, currentMp: derivedStats.MP, unallocatedStatPoints: 100,
+            linhCan: { elements: [Element.KIM, Element.HOA], quality: 'Thiên Phẩm', description: 'Linh căn hiếm có.' }
+        };
+    
+        setCharacter(newCharacter);
+        setWorldState(newWorldState);
+        setScreen(GameScreen.WORLD);
+        setIsQuickPlayLoading(false);
+    }, []);
+
 
     const value: GameContextType = {
         screen,
@@ -929,7 +1125,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         activePoiIdForDialogue,
         transientDialogue,
         contextualActions,
-        isGeneratingActions,
+// FIX: Changed `isGeneratingActions` to `isActionLocked` to match the GameContextType interface.
+        isActionLocked: isGeneratingActions,
         levelUpInfo,
         oneTimeMessages,
         isFullscreen,
@@ -972,6 +1169,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         handleCreateGame,
         handleCombatEnd,
+        handleContinueAfterCombat,
         handleStartCombat,
         handleActivateCultivationTechnique,
         handleSendDialogueMessage,
@@ -984,7 +1182,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         handleUpdateImageLibrary: (lib) => setImageLibrary(lib),
         clearLevelUpInfo: () => setLevelUpInfo(null),
         setOneTimeMessages,
-        // FIX: Add missing properties to the context value to match the GameContextType interface.
         handleQuickPlay,
         handleDevQuickStart,
         handleOpenForge,

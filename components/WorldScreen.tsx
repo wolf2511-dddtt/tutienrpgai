@@ -1,11 +1,8 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Character, GameScreen, ExplorationEventLog, Poi, LogType } from '../types';
-import { processPlayerAction } from '../services/geminiService';
-import { getTerrainFromPosition } from '../services/gameLogic';
+import { useGame } from '../contexts/GameContext';
 import InventoryScreen from './InventoryScreen';
 import ResourcesScreen from './ResourcesScreen';
-import { useGame } from '../contexts/GameContext';
 import QuestLog from './QuestLog';
 import PetScreen from './PetScreen';
 import CharacterSheet from './CharacterSheet';
@@ -168,7 +165,7 @@ const PlayerInputFooter: React.FC<{
     onActionSubmit: (action: string) => void;
     isProcessing: boolean;
 }> = ({ onActionSubmit, isProcessing }) => {
-    const { contextualActions, isGeneratingActions, handleGenerateContextualActions, handleGetAIAdvice } = useGame();
+    const { contextualActions, isActionLocked, handleGenerateContextualActions, handleGetAIAdvice } = useGame();
     const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [inputText, setInputText] = useState('');
 
@@ -213,18 +210,18 @@ const PlayerInputFooter: React.FC<{
                         <button 
                             type="button" 
                             onClick={handleGenerateContextualActions} 
-                            disabled={isGeneratingActions || isProcessing}
+                            disabled={isActionLocked || isProcessing}
                             className="bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-quaternary)] text-[var(--color-accent-light)] font-bold p-2 rounded-lg transition disabled:opacity-50 flex items-center justify-center border border-[var(--color-border-base)] shadow-sm w-10 h-10 flex-shrink-0"
                             title="Gợi ý hành động bằng AI"
                         >
-                            {isGeneratingActions 
+                            {isActionLocked 
                                 ? <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                 : '💡'}
                         </button>
                         <button 
                             type="button" 
                             onClick={handleGetAIAdvice} 
-                            disabled={isGeneratingActions || isProcessing}
+                            disabled={isActionLocked || isProcessing}
                             className="bg-purple-900/30 hover:bg-purple-800/50 border border-purple-500/50 text-purple-300 font-bold p-2 rounded-lg transition disabled:opacity-50 flex items-center justify-center shadow-sm w-10 h-10 flex-shrink-0"
                             title="Cầu viện (Xin lời khuyên chiến thuật)"
                         >
@@ -324,20 +321,16 @@ const MenuModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 const WorldScreen: React.FC = () => {
     const { 
         character, 
-        appSettings,
-        worldState,
         oneTimeMessages,
         setOneTimeMessages,
-        handleStartCombat, 
         handleOpenForge, 
         handleOpenMenu,
         handleBackToMenu,
-        handleOpenDialogue,
-        clearContextualActions
+        handlePlayerAction,
+        isActionLocked,
     } = useGame();
 
     const [eventLog, setEventLog] = useState<ExplorationEventLog[]>([]);
-    const [isProcessing, setIsProcessing] = useState(false);
     
     const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -362,28 +355,6 @@ const WorldScreen: React.FC = () => {
     if (!character) {
         return null;
     }
-    
-    const handleActionSubmit = useCallback(async (action: string) => {
-        if (!action || isProcessing) return;
-        setIsProcessing(true);
-        clearContextualActions();
-        
-        const terrain = getTerrainFromPosition(character.position);
-        try {
-            const eventText = await processPlayerAction(character, terrain, action, appSettings.difficulty);
-            setEventLog(prev => [{ id: crypto.randomUUID(), text: eventText, type: LogType.NARRATIVE }, ...prev]);
-            
-            const combatKeywords = ['kẻ địch', 'chạm trán', 'quái vật', 'sát khí', 'giao chiến', 'tấn công'];
-            if (combatKeywords.some(keyword => eventText.toLowerCase().includes(keyword))) {
-                setTimeout(() => handleStartCombat(), 1500);
-            }
-        } catch (err) {
-            console.error(err);
-            setEventLog(prev => [{ id: crypto.randomUUID(), text: `Có lỗi xảy ra khi xử lý hành động.`, type: LogType.ERROR }, ...prev]);
-        }
-        
-        setIsProcessing(false);
-    }, [character, isProcessing, appSettings.difficulty, handleStartCombat, clearContextualActions]);
 
     const handleBackToMenuWithConfirmation = useCallback(() => {
         if (window.confirm("Bạn có chắc muốn trở về menu chính? Mọi tiến trình chưa lưu sẽ bị mất.")) {
@@ -417,7 +388,7 @@ const WorldScreen: React.FC = () => {
                         <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-[var(--color-primary-light)] rounded-bl-lg opacity-50"></div>
                         <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-[var(--color-primary-light)] rounded-br-lg opacity-50"></div>
                         
-                        <StoryLog logs={eventLog} isProcessing={isProcessing} />
+                        <StoryLog logs={eventLog} isProcessing={isActionLocked} />
                     </div>
 
                     {/* Right Panel: NPCs / Context */}
@@ -426,7 +397,7 @@ const WorldScreen: React.FC = () => {
                     </div>
                 </main>
                 
-                <PlayerInputFooter onActionSubmit={handleActionSubmit} isProcessing={isProcessing} />
+                <PlayerInputFooter onActionSubmit={handlePlayerAction} isProcessing={isActionLocked} />
             </div>
             
             {isMenuModalOpen && <MenuModal onClose={() => setIsMenuModalOpen(false)} />}

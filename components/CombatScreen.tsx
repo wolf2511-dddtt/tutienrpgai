@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Character, Item, UpgradeMaterial, AttackResult, Skill, SkillType, ActiveEffect, TargetType, Pet, Combatant, UpgradeConsumable, Rarity, CombatLogEntry, MonsterRank, Element, SkillEffectType, BossPhase } from '../types';
 import { performAttack, useSkill, generateItem, calculateDerivedStats, createMonster } from '../services/gameLogic';
@@ -97,7 +98,7 @@ const TurnOrderDisplay: React.FC<{ participants: Combatant[]; currentIndex: numb
 
 
 export const CombatScreen: React.FC = () => {
-  const { character: player, enemy: initialEnemy, handleCombatEnd, appSettings, handleCatchPet, handleEnslaveTarget } = useGame();
+  const { character: player, enemy: initialEnemy, handleCombatEnd, handleContinueAfterCombat, appSettings, handleCatchPet, handleEnslaveTarget } = useGame();
   
   if (!player || !initialEnemy) return null; 
 
@@ -106,6 +107,7 @@ export const CombatScreen: React.FC = () => {
 
   const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
   const [isCombatOver, setIsCombatOver] = useState(false);
+  const [playerWon, setPlayerWon] = useState(false);
   const [rewards, setRewards] = useState<{exp: number, items: Item[], materials: { [key in UpgradeMaterial]?: number }, consumables: { [key in UpgradeConsumable]?: number }}|null>(null);
   const [showSkillList, setShowSkillList] = useState(false);
   
@@ -128,6 +130,8 @@ export const CombatScreen: React.FC = () => {
   useEffect(() => {
     combatEndedRef.current = false;
     setIsCombatOver(false);
+    setPlayerWon(false);
+    setRewards(null);
     
     let enemyWithBossData = { ...initialEnemy };
     if (enemyWithBossData.isBoss && BOSS_DEFINITIONS[enemyWithBossData.name]) {
@@ -180,29 +184,30 @@ export const CombatScreen: React.FC = () => {
       });
   }, []);
 
-  const endCombat = useCallback(async (playerWon: boolean) => {
+  const endCombat = useCallback(async (won: boolean) => {
     if (combatEndedRef.current) return;
     combatEndedRef.current = true;
-    setIsCombatOver(true);
     
     const finalPlayer = participantsRef.current.find(p => p.id === player.id) as Character;
     const finalPet = participantsRef.current.find(p => p.id === player.activePetId) as Pet | undefined;
 
-    if (playerWon && finalPlayer) {
+    let expGained = 0;
+    let itemsDropped: Item[] = [];
+    let materialsDropped: { [key in UpgradeMaterial]?: number } = {};
+    let consumablesDropped: { [key in UpgradeConsumable]?: number } = {};
+
+    if (won && finalPlayer) {
+        setPlayerWon(true);
         const difficultyMods = DIFFICULTY_MODIFIERS[appSettings.difficulty];
         const enemyRank = initialEnemy.rank || MonsterRank.Thường;
         const rankMods = MONSTER_RANK_MODIFIERS[enemyRank];
         const lootMultiplier = rankMods.lootMultiplier;
         
         let baseExpGained = Math.floor(10 * (initialEnemy.level * 0.5));
-        if (initialEnemy.isBoss) {
-            baseExpGained *= 3;
-        }
-        const expGained = Math.floor(baseExpGained * difficultyMods.expRate * lootMultiplier);
+        if (initialEnemy.isBoss) baseExpGained *= 3;
+        expGained = Math.floor(baseExpGained * difficultyMods.expRate * lootMultiplier);
 
-        const itemsDropped: Item[] = [];
         const finalLootRate = difficultyMods.lootRate * lootMultiplier;
-
         if (initialEnemy.isBoss) {
             itemsDropped.push(await generateItem(initialEnemy.level, finalPlayer, Rarity.EPIC));
             if(Math.random() < 0.5 * finalLootRate) itemsDropped.push(await generateItem(initialEnemy.level, finalPlayer, Rarity.RARE));
@@ -211,7 +216,6 @@ export const CombatScreen: React.FC = () => {
              if (Math.random() < 0.2 * finalLootRate) itemsDropped.push(await generateItem(initialEnemy.level, finalPlayer));
         }
         
-        const materialsDropped: { [key in UpgradeMaterial]?: number } = {};
         const materialAmount = Math.floor((Math.random() * 2 + 1) * lootMultiplier);
         if(initialEnemy.level < 20) materialsDropped[UpgradeMaterial.TINH_THACH_HA_PHAM] = materialAmount;
         else if (initialEnemy.level < 50) materialsDropped[UpgradeMaterial.TINH_THACH_TRUNG_PHAM] = materialAmount;
@@ -219,7 +223,6 @@ export const CombatScreen: React.FC = () => {
         if (Math.random() < 0.1 * finalLootRate) materialsDropped[UpgradeMaterial.LINH_HON_THACH] = (materialsDropped[UpgradeMaterial.LINH_HON_THACH] || 0) + 1;
         if(initialEnemy.isBoss) materialsDropped[UpgradeMaterial.LINH_HON_THACH] = (materialsDropped[UpgradeMaterial.LINH_HON_THACH] || 0) + 1;
 
-        const consumablesDropped: { [key in UpgradeConsumable]?: number } = {};
         if (Math.random() < 0.20 * finalLootRate) {
             const amount = 1 + (enemyRank === MonsterRank.TinhAnh ? 1 : 0) + (enemyRank === MonsterRank.ThủLĩnh ? 2 : 0);
             consumablesDropped[UpgradeConsumable.LINH_THU_THUC] = (consumablesDropped[UpgradeConsumable.LINH_THU_THUC] || 0) + amount;
@@ -228,13 +231,21 @@ export const CombatScreen: React.FC = () => {
             const amount = Math.floor(Math.random() * 3) + 3;
             consumablesDropped[UpgradeConsumable.LINH_THU_THUC] = (consumablesDropped[UpgradeConsumable.LINH_THU_THUC] || 0) + amount;
         }
-
+        
         setRewards({exp: expGained, items: itemsDropped, materials: materialsDropped, consumables: consumablesDropped});
         addToLog([`Bạn đã chiến thắng! Nhận được ${expGained} EXP.`], 'info');
     } else {
+        setPlayerWon(false);
         addToLog('Bạn đã bị đánh bại!', 'error');
     }
-  }, [initialEnemy, appSettings.difficulty, addToLog, player]);
+    
+    // This will update the character state and handle level ups, but not change screen
+    handleCombatEnd(won, finalPlayer, finalPet, expGained, itemsDropped, materialsDropped, consumablesDropped, !!player.currentDungeonId);
+
+    // This will trigger the rewards UI
+    setTimeout(() => setIsCombatOver(true), 1000);
+
+  }, [initialEnemy, appSettings.difficulty, addToLog, player, handleCombatEnd]);
 
     const nextTurn = useCallback(() => {
         if (combatEndedRef.current) return;
@@ -343,13 +354,13 @@ export const CombatScreen: React.FC = () => {
         }
         
         // Check for phase transition
-        const hpPercent = newDefenderState.currentHp / newDefenderState.derivedStats.HP;
+        const hpPercent = (newDefenderState.currentHp - result.damage) / newDefenderState.derivedStats.HP; // Check HP after damage
         const nextPhaseIndex = (newDefenderState.currentPhaseIndex || 0) + 1;
         if (nextPhaseIndex < newDefenderState.bossInfo.phases.length) {
             const nextPhase = newDefenderState.bossInfo.phases[nextPhaseIndex];
             if (hpPercent <= nextPhase.hpThreshold) {
                 newDefenderState.currentPhaseIndex = nextPhaseIndex;
-                const originalStats = calculateDerivedStats(newDefenderState);
+                const originalStats = calculateDerivedStats({ ...newDefenderState, currentPhaseIndex: 0 }); // Calculate based on base phase
                 newDefenderState.derivedStats.ATK = Math.floor(originalStats.ATK * nextPhase.statMultiplier);
                 newDefenderState.derivedStats.DEF = Math.floor(originalStats.DEF * nextPhase.statMultiplier);
                 newDefenderState.skills = ALL_SKILLS.filter(s => nextPhase.skills.includes(s.id));
@@ -416,6 +427,12 @@ export const CombatScreen: React.FC = () => {
         const remainingEnemies = participantsRef.current.filter(p => p.id !== player.id && p.id !== player.activePetId && p.id !== player.activeRetainerId && p.currentHp > 0 && p.id !== newDefenderState.id);
         if (remainingEnemies.length === 0) {
              setTimeout(() => endCombat(true), 500);
+        } else {
+             // Check if only minions remain for an immune boss, if so, something is wrong, end combat
+             const nonMinionEnemies = remainingEnemies.filter(p => p.name !== 'Thánh Trí Mảnh Vỡ');
+             if (nonMinionEnemies.length === 0) {
+                setTimeout(() => endCombat(true), 500);
+             }
         }
     }
   }, [addToLog, endCombat, addFloatingText, updateMultipleParticipantsState, player.id, player.activePetId, player.activeRetainerId]);
@@ -449,6 +466,7 @@ useEffect(() => {
         }
 
         if (potentialTargets.length === 0) {
+             // This case means the battle should be over, but let's just advance the turn to be safe
             nextTurn();
             return;
         }
@@ -541,6 +559,40 @@ useEffect(() => {
           if (!combatEndedRef.current) setTimeout(nextTurn, 500);
       }
   };
+  
+  const handleRunAway = () => {
+    if (window.confirm("Bỏ chạy sẽ khiến bạn mất một lượng nhỏ EXP. Bạn có chắc không?")) {
+        endCombat(false);
+    }
+  }
+
+  if (isCombatOver) {
+    return (
+        <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 animate-fade-in">
+            <div className="w-full max-w-md bg-gray-800/80 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-purple-500/30 text-center">
+                <h1 className="text-4xl font-bold mb-4">{playerWon ? "Chiến Thắng!" : "Thất Bại"}</h1>
+                {playerWon && rewards && (
+                    <div className="space-y-3 text-left">
+                        <p className="text-lg text-yellow-300">EXP nhận được: <span className="font-bold">{rewards.exp}</span></p>
+                        {rewards.items.length > 0 && (
+                            <div>
+                                <h3 className="font-semibold text-cyan-300">Vật phẩm rơi ra:</h3>
+                                <div className="pl-4 space-y-1">
+                                    {rewards.items.map(item => <p key={item.id} className="text-sm">{item.name}</p>)}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {!playerWon && <p className="text-gray-400">Bạn đã bị đánh bại. Hãy mạnh mẽ hơn và thử lại!</p>}
+                 <button onClick={handleContinueAfterCombat} className="w-full mt-8 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105">
+                    Tiếp tục
+                </button>
+            </div>
+        </div>
+    );
+  }
+
 
   if (participants.length === 0) {
     const activePet = player.pets.find(p => p.id === player.activePetId);
@@ -567,4 +619,10 @@ useEffect(() => {
                     </div>
                 </div>
                 <div className="mt-12 flex items-center justify-center gap-3 text-xl text-gray-300 animate-pulse">
-                     <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8
+                     <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </div>
+            </div>
+        </div>
+    );
+  }
+};
