@@ -1,7 +1,8 @@
 
 
+
 import { GoogleGenAI, GenerateContentResponse, Type, HarmCategory, HarmBlockThreshold, Modality } from "@google/genai";
-import { Character, DesignedWorld, Faction, QuestType, WorldSummary, Element, Poi, Quest, QuestStatus, Dungeon, DungeonFloorType, MonsterRank, ItemType, Rarity, UpgradeMaterial, RandomEvent, EventOutcomeType } from "../types";
+import { Character, DesignedWorld, Faction, QuestType, WorldSummary, Element, Poi, Quest, QuestStatus, Dungeon, DungeonFloorType, MonsterRank, ItemType, Rarity, UpgradeMaterial, RandomEvent, EventOutcomeType, Item } from "../types";
 import { loadApiKeys } from "./storageService";
 import { PREDEFINED_MONSTERS } from "../data/monsterData";
 
@@ -821,5 +822,78 @@ export const generateProactiveNarration = async (character: Character, terrain: 
     } catch (e: any) {
         console.error("Error generating proactive narration:", e);
         return ""; // Return empty string on error to not break the flow
+    }
+};
+
+export const generateRandomItemForEvent = async (character: Character, eventDescription: string): Promise<Omit<Item, 'id'>> => {
+    const prompt = `
+    Bối cảnh: Game RPG tu tiên. Một sự kiện ngẫu nhiên đã xảy ra: "${eventDescription}".
+    Nhân vật: ${character.name}, Cấp ${character.level}.
+    
+    Hãy tạo ra MỘT vật phẩm (trang bị) ngẫu nhiên phù hợp làm phần thưởng cho sự kiện này.
+    
+    YÊU CẦU: Trả về một đối tượng JSON duy nhất theo cấu trúc sau:
+    - name: Tên vật phẩm (sáng tạo, phù hợp với sự kiện).
+    - description: Mô tả ngắn gọn (1-2 câu).
+    - type: Loại trang bị (chọn từ [Vũ Khí, Áo, Nón, Quần, Giày, PhụKiện]).
+    - rarity: Độ hiếm (chọn từ [Common, Uncommon, Rare]).
+    - level: Cấp độ vật phẩm (gần bằng cấp độ nhân vật).
+    - baseStats: Các chỉ số gốc (ví dụ: {"STR": 5, "CON": 3}).
+    - bonusStats: Các chỉ số phụ (ví dụ: {"HP": 50, "CRIT_RATE": 2}).
+    `;
+
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING },
+            description: { type: Type.STRING },
+            type: { type: Type.STRING, enum: Object.values(ItemType).filter(it => it !== ItemType.CULTIVATION_MANUAL && it !== ItemType.SKILL_BOOK) },
+            rarity: { type: Type.STRING, enum: [Rarity.COMMON, Rarity.UNCOMMON, Rarity.RARE] },
+            level: { type: Type.NUMBER },
+            baseStats: { type: Type.OBJECT, properties: {} },
+            bonusStats: { type: Type.OBJECT, properties: {} },
+        },
+        required: ["name", "description", "type", "rarity", "level", "baseStats", "bonusStats"]
+    };
+
+    try {
+        const client = getAiClient();
+        const response = await client.models.generateContent({
+            model: "gemini-flash-latest",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                temperature: 0.9,
+            },
+        });
+        const itemData = JSON.parse(response.text || '{}');
+        // Add default maxUpgrade based on rarity
+        const maxUpgrade = {
+            [Rarity.COMMON]: 5,
+            [Rarity.UNCOMMON]: 10,
+            [Rarity.RARE]: 15,
+        }[itemData.rarity] || 5;
+
+        return {
+            ...itemData,
+            upgradeLevel: 0,
+            maxUpgrade,
+        };
+
+    } catch (e: any) {
+        console.error("Error generating random item:", e);
+        // Fallback to a simple item
+        return {
+            name: "Linh Thạch Vụn",
+            description: "Một mảnh đá chứa đựng linh khí yếu ớt.",
+            type: ItemType.PhụKiện,
+            rarity: Rarity.COMMON,
+            level: character.level,
+            baseStats: {},
+            bonusStats: { HP: 10 },
+            upgradeLevel: 0,
+            maxUpgrade: 5,
+        };
     }
 };

@@ -725,7 +725,7 @@ export interface GameContextType {
     handleLearnItem: (item: Item) => void;
     handleGetAIAdvice: () => Promise<void>;
     handlePlayerAction: (action: string) => Promise<void>;
-    handleResolveEventChoice: (choice: EventChoice) => void;
+    handleResolveEventChoice: (choice: EventChoice) => Promise<void>;
     
     // Retainer Methods
     handleRecruitRetainer: () => Promise<void>;

@@ -43,7 +43,7 @@ import {
 import { loadSettings, saveSettings, loadAllSaveSlots, saveGame, loadGame, deleteSave } from '../services/storageService';
 import { DEFAULT_SETTINGS, PLAYER_CLASS_BASE_STATS, UPGRADE_CONSUMABLES_DATA, UPGRADE_MATERIALS_DATA, PET_EVOLUTION_COST, PET_EVOLUTION_LEVEL, DIFFICULTY_MODIFIERS } from '../constants';
 import { calculateDerivedStats, getUpgradeCost, processItemUpgrade, calculatePetDerivedStats, getTerrainFromPosition, generateRandomRetainer, calculateRetainerStats, generateRandomMonster, calculateLevelUp, createMonster, generateItem } from '../services/gameLogic';
-import { generateCharacterDetails, generateSectMission, generateContextualActions, generateStrategicAdvice, generateDialogueResponse, generateDungeon, processPlayerAction, generateRandomEvent, generateProactiveNarration } from '../services/geminiService';
+import { generateCharacterDetails, generateSectMission, generateContextualActions, generateStrategicAdvice, generateDialogueResponse, generateDungeon, processPlayerAction, generateRandomEvent, generateProactiveNarration, generateRandomItemForEvent } from '../services/geminiService';
 import { VAN_LINH_GIOI_POIS } from '../data/worldData';
 import { PREDEFINED_MONSTERS } from '../data/monsterData';
 
@@ -1163,14 +1163,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const handleResolveEventChoice = (choice: EventChoice) => {
+    const handleResolveEventChoice = async (choice: EventChoice) => {
         if (!character || !activeEvent) return;
 
         let newCharacter = { ...character };
         const outcomeLogs: string[] = [];
         let startCombatWith: string | undefined = undefined;
 
-        choice.outcomes.forEach(outcome => {
+        // Use a for...of loop to handle async operations inside
+        for (const outcome of choice.outcomes) {
             outcomeLogs.push(outcome.description);
             switch(outcome.type) {
                 case 'STAT_CHANGE':
@@ -1189,28 +1190,28 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     }
                     break;
                 case 'ITEM':
-                    // This requires a proper item generation or lookup. For now, we add a placeholder.
-                    // A full implementation would need to call generateItem or similar.
-                    const newItem: Item = {
-                        id: crypto.randomUUID(),
-                        name: outcome.itemName || "Vật phẩm lạ",
-                        description: "Một vật phẩm nhận được từ sự kiện",
-                        level: character.level,
-                        rarity: outcome.itemRarity || Rarity.COMMON,
-                        type: ItemType.PhụKiện, // Placeholder
-                        baseStats: {},
-                        bonusStats: {},
-                        upgradeLevel: 0,
-                        maxUpgrade: 5,
-                    };
-                    newCharacter.inventory.push(newItem);
+                    // NEW: Use AI to generate a contextual item
+                    try {
+                        const itemData = await generateRandomItemForEvent(character, activeEvent.description);
+                        const newItem: Item = {
+                            ...itemData,
+                            id: crypto.randomUUID(),
+                        };
+                        newCharacter.inventory.push(newItem);
+                        // Make the log more specific
+                        const itemLogIndex = outcomeLogs.length - 1;
+                        outcomeLogs[itemLogIndex] = `${outcome.description} Bạn nhận được [${newItem.name}]!`;
+                    } catch (e) {
+                        console.error("Failed to generate item from event", e);
+                        outcomeLogs.push("Nhưng dường như vật phẩm đã tan biến vào hư không.");
+                    }
                     break;
                 case 'COMBAT':
                     startCombatWith = outcome.monsterName;
                     break;
                 // Other cases like REPUTATION can be added here
             }
-        });
+        }
         
         setCharacter(newCharacter);
         setOneTimeMessages(outcomeLogs.map(log => ({ id: crypto.randomUUID(), text: log, type: LogType.NARRATIVE })));

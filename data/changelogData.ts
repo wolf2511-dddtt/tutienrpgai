@@ -9,6 +9,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "3.0.5",
+    date: new Date().toISOString().split('T')[0],
+    changes: [
+      { type: 'new', description: 'Hoàn thiện Hệ thống Đệ Tử (Retainers): Giao diện quản lý, chiêu mộ, huấn luyện và cho đệ tử theo hỗ trợ chiến đấu.' },
+      { type: 'update', description: 'Nâng cấp phần thưởng từ Sự kiện Ngẫu nhiên: AI giờ đây sẽ tự động tạo ra các vật phẩm độc đáo và phù hợp thay vì vật phẩm giữ chỗ.' },
+      { type: 'fix', description: 'Tối ưu hóa giao diện Đồng Hành để phân biệt rõ ràng giữa Đệ Tử và Nô Bộc.' },
+    ],
+  },
+  {
     version: "3.0.4",
     date: new Date().toISOString().split('T')[0],
     changes: [
